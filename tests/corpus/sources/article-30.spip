@@ -1,0 +1,12 @@
+type: article
+id: 30
+titre: Tableau
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+|| Légende du tableau | Résumé du tableau ||
+| {{Colonne A}} | {{Colonne B}} |
+| un | deux |
+| fusionnée | < |
