@@ -16,6 +16,7 @@ final class Convertisseur
 	 * Classe de chaque passe de Options::PASSES
 	 */
 	private const CLASSES = array(
+		'code' => Reconnaissance\Code::class,
 	);
 
 	private array $avertissements = array();

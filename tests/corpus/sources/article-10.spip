@@ -1,0 +1,42 @@
+type: article
+id: 10
+titre: Structures
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+{{{Intertitre}}}
+
+Un paragraphe avec du {{gras}}, des mots en {italique} et du {{gras avec {italique} dedans}}.
+
+[haut<-]Une ancre en début de paragraphe.
+
+-* premier
+-* second
+-** sous-élément
+-* troisième
+
+-# un
+-# deux
+
+<quote>
+Une citation.
+</quote>
+
+Du code <code>a<b && c</code> en ligne.
+
+<cadre>
+if (a < b) {{x}}
+</cadre>
+
+<poesie>
+vers un
+vers deux
+</poesie>
+
+----
+
+ligne un
+ligne deux
+_ ligne trois
