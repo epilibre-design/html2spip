@@ -146,7 +146,7 @@ Cas incomplets :
 
 ### 4.4 Modèles
 
-La passe Modèles reconnaît une **forme HTML** : celle que les modèles dist `doc`, `img` et `emb` de SPIP 4.4 produisent. Elle ne prouve pas l'origine du HTML : un modèle de squelette ou de plugin qui produit la même structure est converti de la même façon, en `<docN|align>`. Dans SPIP 4.4, `<docN>`, `<imgN>` et `<embN>` donnent le **même** HTML (annexe B) : `div.spip_document_N.spip_document`, alignement dans `spip_documents_<align>`. La forme canonique est donc `<docN|align>`, ou `<docN>` si l'alignement est celui que SPIP donne sans paramètre (`center`, relevé par la capture de `<docN>`). Les autres paramètres (`largeur`, `hauteur`…) ne sont pas recherchés.
+La passe Modèles reconnaît une **forme HTML** : celle que les modèles dist `doc`, `img` et `emb` de SPIP 4.4 produisent. Elle ne prouve pas l'origine du HTML : un modèle de squelette ou de plugin qui produit la même structure est converti de la même façon, en `<docN|align>`. Dans SPIP 4.4, `<docN>`, `<imgN>` et `<embN>` donnent le **même** HTML (annexe B) : `div.spip_document_N.spip_document`, alignement dans `spip_documents_<align>`. La forme canonique est donc `<docN|align>`, ou `<docN>` si l'alignement est celui que SPIP donne sans paramètre (`center`, relevé par la capture de `<docN>`). Les autres paramètres (`alt`, `lien`, `largeur`, `hauteur`…) ne sont pas recherchés.
 
 Tout HTML qui n'a pas cette forme n'est pas identifié comme modèle : il passe à la conversion générique, comme du HTML quelconque.
 
@@ -226,7 +226,7 @@ Ces cas sont documentés. Ceux qu'un SPIP 4.4 sans plugin produit figurent dans 
 - typographie, en français et en anglais : chaque règle de l'annexe A ; `C’est` tapé avec `’` dans la source (rendu en caractère par SPIP, sortie `C'est` rendue en `&#8217;`) ; `~` voulus (entre deux mots, devant un signe où SPIP n'en met pas) ; `10:30`, `::`, `[?…]`, `(!)` sans insécable ; abréviations ; `--` et `---` ; `« »` et `“ ”` ;
 - textes qui ressemblent à des raccourcis ;
 - `_ ` et retours simples ;
-- cas perdus (`limite`) : `<multi>`, `<html>`, modèle dist `<docN|largeur=…>` (paramètre perdu).
+- cas perdus (`limite`) : `<multi>`, `<html>`, modèle dist `<docN|left|alt=…>` (paramètre perdu).
 
 ### 6.3 Captures
 
