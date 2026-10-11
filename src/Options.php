@@ -16,8 +16,7 @@ final class Options
 	 * @param Resolveur $resolveur objets du site (liens internes)
 	 * @param string $langue langue du texte : choisit la typographie à inverser (fr pour fr, fr_*, eo, cpf ; en sinon)
 	 * @param array|null $passes passes actives (noms de PASSES) ; null : toutes ; array() : écriture seule
-	 * @param array $ecriture options de l'écriture (Ecrivain::spip()) : autop, marqueurs, raccourcis_gardes,
-	 *     raccourcis_blocs
+	 * @param array $ecriture options de l'écriture (Ecrivain::spip()) : autop
 	 */
 	public function __construct(
 		public Resolveur $resolveur = new ResolveurNul(),

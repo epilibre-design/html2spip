@@ -11,7 +11,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Conversion du HTML de Wordpress en raccourcis SPIP (Ecrivain::spip()), sans SPIP
+ * Conversion du HTML en raccourcis SPIP (Ecrivain::spip()), sans SPIP
  */
 final class EcrivainTest extends TestCase
 {
@@ -74,10 +74,10 @@ final class EcrivainTest extends TestCase
 			'entités' => array('<p>a &lt;b&gt; &amp; c&nbsp;: d</p>', "a &lt;b&gt; &amp; c\u{a0}: d"),
 			'raccourcis SPIP en texte' => array('<p>{{a}} [b->c] [[note]] | d | ~</p>', '&#123;&#123;a&#125;&#125; &#91;b-&gt;c&#93; &#91;&#91;note&#93;&#93; &#124; d &#124; &#126;'),
 			'tiret et souligné en début de ligne' => array("- a\n_ b\nc - d", "&#45; a\n_ _ b\n_ c - d"),
-			// wpautop
-			'éditeur classique' => array("Un\ndeux\n\nTrois", "Un\n_ deux\n\nTrois"),
-			'éditeur classique, blancs' => array("a   b\t c", 'a b c'),
-			'éditeur classique, balises de bloc' => array("<ul>\n<li>a</li>\n</ul>\nTexte", "-* a\n\nTexte"),
+			// autop : retours de ligne qui comptent
+			'texte à retours de ligne' => array("Un\ndeux\n\nTrois", "Un\n_ deux\n\nTrois"),
+			'texte à retours de ligne, blancs' => array("a   b\t c", 'a b c'),
+			'texte à retours de ligne, balises de bloc' => array("<ul>\n<li>a</li>\n</ul>\nTexte", "-* a\n\nTexte"),
 			// HTML mal formé, textes qui faisaient échouer sale
 			'balises croisées' => array('<p>a <b>b <i>c</b> d</i></p>', 'a {{b {c} }} {d}', 'a {{b {c} }} d'),
 			'balises non fermées' => array('<p>a <b>b<p>c', "a {{b}}\n\n{{c}}", "a {{b}}\n\nc"),
@@ -113,36 +113,14 @@ final class EcrivainTest extends TestCase
 
 	public function testContenuABlocs(): void
 	{
-		// Sans wpautop : blancs réduits, retours à la ligne sans effet
+		// Sans autop : blancs réduits, retours à la ligne sans effet
 		$this->assertSame("Un deux\n\nTrois", Ecrivain::spip("<p>Un\ndeux</p>\n\n<p>Trois</p>", array('autop' => false)));
 	}
 
-	/**
-	 * Options de wp2spip : marqueurs de blocs protégés, raccourcis Wordpress convertis après l'écriture
-	 */
-	private const WORDPRESS = array(
-		'marqueurs' => '/(wp2spipbloc\d+)/',
-		'raccourcis_gardes' => '#(\[/?(?:caption|wp_caption|gallery|audio|video|embed|playlist)\b[^\[\]]*\])#i',
-		'raccourcis_blocs' => array(
-			'debut' => '#^\s*\[(?:caption|wp_caption|gallery|audio|video|embed|playlist)\b#i',
-			'fin' => '#\[/(?:caption|wp_caption|audio|video|embed|playlist)\]\s*$#i',
-		),
-	);
-
-	public function testMarqueursDeBlocs(): void
+	public function testCrochetsEchappes(): void
 	{
-		$this->assertSame("Avant\n\nwp2spipbloc0\n\nwp2spipbloc12\n\nAprès", Ecrivain::spip("<p>Avant</p>\n\nwp2spipbloc0\n\nwp2spipbloc12\n\n<p>Après</p>", array('autop' => false) + self::WORDPRESS));
-		$this->assertSame("a\n\nwp2spipbloc3\n\nb", Ecrivain::spip('a wp2spipbloc3 b', array('autop' => false) + self::WORDPRESS));
-		// Sans l'option : du texte
-		$this->assertSame('a wp2spipbloc3 b', Ecrivain::spip('a wp2spipbloc3 b', array('autop' => false)));
-	}
-
-	public function testRaccourcisWordpress(): void
-	{
-		$this->assertSame('[caption id="attachment_5" align="alignleft"]<img src="a.jpg"> Légende[/caption]', Ecrivain::spip('[caption id="attachment_5" align="alignleft"]<img src="a.jpg"> Légende[/caption]', self::WORDPRESS));
-		$this->assertSame("Avant\n[caption id=\"x\"]<img src=\"a.jpg\"> L[/caption]\nAprès", Ecrivain::spip("Avant\n[caption id=\"x\"]<img src=\"a.jpg\"> L[/caption]\nAprès", self::WORDPRESS));
-		// Sans l'option : du texte, échappé
-		$this->assertSame('&#91;caption&#93;x&#91;/caption&#93;', Ecrivain::spip('[caption]x[/caption]'));
+		// Texte entre crochets : du texte pour SPIP, pas un raccourci
+		$this->assertSame('&#91;x&#93;y&#91;/x&#93;', Ecrivain::spip('[x]y[/x]'));
 	}
 
 	public function testTexteLongSansPerte(): void
