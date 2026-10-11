@@ -2,7 +2,7 @@
 
 Date : 2026-10-11
 Origine : convertisseur de wp2spip (`inc/wp2spip_html.php`, spec `2026-10-09-wp2spip-convertisseur-html-design.md` du dépôt wp2spip) et plugin [sale](https://git.spip.net/spip-contrib-extensions/sale).
-Statut : design validé par le mainteneur le 2026-10-11, puis **simplifié** le même jour à sa demande : pas d'extraction de page publique, pas de reconstruction de `<multi>`. Reconnaissance des modèles de plugins ajoutée le même jour, avec Albums en premier (§ 4.4). Règles de typographie relevées dans le code de SPIP 4.4.21 le même jour (§ 4.5, annexe A) ; plus aucun volet ouvert.
+Statut : design validé par le mainteneur le 2026-10-11 ; formes HTML relevées sur SPIP 4.4.28 avant le plan (annexe B) ; puis **simplifié** le même jour à sa demande : pas d'extraction de page publique, pas de reconstruction de `<multi>`. Reconnaissance des modèles de plugins ajoutée le même jour, avec Albums en premier (§ 4.4). Règles de typographie relevées dans le code de SPIP 4.4.21 le même jour (§ 4.5, annexe A) ; plus aucun volet ouvert.
 
 ## 1. Objectif
 
@@ -44,8 +44,8 @@ src/                      Cœur PHP pur, namespace Html2Spip\
   Options.php
   Contexte.php            État d'une conversion, journal d'avertissements
   Arbre/                  Analyse HTML5 (Dom\HTMLDocument ou Masterminds), sérialisation
-  Reconnaissance/         Étape 1 : interface Passe::appliquer(Arbre, Contexte), une classe par passe
-    Code, Notes, Modeles, Liens, Ancres, Tableaux, Intertitres, Typographie
+  Reconnaissance/         Étape 1 : interface Passe::appliquer(Element $body, Contexte), une classe par passe
+    Code, Notes, Modeles, Liens, Tableaux, Typographie
   Ecriture/               Étape 2 : parcours générique extrait de wp2spip
   Modeles/                Interface ReconnaisseurModele, registre
     Core/                 doc, img, emb (SPIP 4.4)
@@ -53,7 +53,11 @@ src/                      Cœur PHP pur, namespace Html2Spip\
   Resolveur.php           Interface
   ResolveurNul.php        Aucun lien interne retrouvé
   ResolveurTableau.php    Données passées en tableau (tests, usage hors SPIP)
-spip/                     Plugin SPIP : paquet.xml, ResolveurSpip, html2spip(), commande spip-cli html2spip:convertir
+  Spip/                   ResolveurSpip, OptionsSpip : utilisables seulement dans SPIP
+paquet.xml, html2spip_options.php, inc/html2spip.php
+                          Plugin SPIP à la racine du dépôt, comme wp2spip : autoload de src/ et de lib/, fonction html2spip()
+spip-cli/                 Commande html2spip:convertir
+lib/masterminds-html5/    Copie de Masterminds pour PHP 8.1 à 8.3 hors Composer (comme wp2spip)
 tests/unit/               Sans SPIP
 tests/integration/        Avec le SPIP jetable
 tests/corpus/             Sources, captures, sorties attendues (§ 6)
@@ -66,7 +70,7 @@ Le HTML est analysé en arbre HTML5. Viennent ensuite deux étapes :
 
 1. **Reconnaissance**, passes dans cet ordre :
    - **Code**, d'abord, pour protéger le texte brut ;
-   - **Notes**, **Modèles**, **Liens**, **Ancres**, **Tableaux**, **Intertitres** ;
+   - **Notes**, **Modèles**, **Liens**, **Tableaux** ;
    - **Typographie**, en dernier, sur les nœuds texte restants.
 2. **Écriture** : conversion générique, qui produit le texte SPIP.
 
@@ -93,7 +97,6 @@ interface Resolveur {
 - `langue` : choisit la table de typographie à inverser (`fr` par défaut).
 - `passes` : passes actives. Une liste vide donne la conversion générique seule (usage de wp2spip).
 - `modeles` : reconnaisseurs actifs (ceux du core par défaut ; `Albums` à ajouter ; extensible par l'appelant). Le plugin SPIP active `Albums` si le plugin Albums est actif.
-- `autobr` : vrai si le site rend les retours simples en `<br class="autobr">`.
 - `autop`, `marqueurs` : options de l'écriture reprises de wp2spip, pour son seul usage.
 
 ### 3.4 Erreurs
@@ -108,18 +111,21 @@ Chaque règle est validée par une capture (§ 6.3). En cas d'écart, la capture
 
 | HTML produit par SPIP | Sortie |
 |---|---|
-| `a.spip_in` dont le résolveur trouve l'objet | Raccourci d'objet : `123` (article), `rub5`, `br3`, `aut2`, `mot4`, `site7`, `doc8`, avec `#ancre` gardée. Si le texte du lien est égal à `titreAffiche()` : `[->123]`, sinon `[texte->123]` |
-| `title`, `hreflang` | `[texte\|bulle->123]`, `[texte\|bulle\|lang->123]` |
-| Lien interne non résolu (objet absent, non publié, pas de résolveur) | Si l'URL contient le type et l'id (`spip.php?article999`, `article999.html`, `?page=…&id_article=…`) : raccourci `[texte->999]` et avertissement. Sinon : `[texte->url]` et avertissement |
+| lien interne (`a.spip_in`, ou sans classe pour un objet absent) dont le résolveur trouve l'objet | Raccourci d'objet : `123` (article), `rub5`, `br3`, `aut2`, `mot4`, `site7`, `doc8`, avec `#ancre` gardée. Si le texte du lien est égal à `titreAffiche()` : `[->123]`, sinon `[texte->123]` |
+| `title` | `[texte\|bulle->123]` ; une langue de bulle n'est rendue que dans `title` (`title="bulle\|en"` pour `[x\|bulle\|en->1]`), elle reste donc dans la bulle |
+| Lien interne non résolu (objet absent, non publié, pas de résolveur) | Si l'URL contient le type et l'id (`spip.php?article999`, `article999.html`, `?page=…&id_article=…`) : raccourci et avertissement. SPIP rend un objet absent sans classe, avec pour texte « article 999 » : ce texte donne `[->999]`, un autre `[texte->999]`. Sinon : `[texte->url]` et avertissement |
 | `a.spip_out` | `[texte->url]` |
-| `mailto:` dont le texte est l'adresse | `[->adresse]` |
+| `a.spip_mail` (`mailto:`) | `[->adresse]` si le texte est l'adresse, sinon `[texte->mailto:adresse]` |
 | `a.spip_url.auto` (URL nue rendue en lien) | URL nue |
-| `a.spip_glossaire` | `[?terme]`, ou `[texte->?terme]` si le texte diffère du terme ; la forme exacte suit la capture |
+| `a.spip_glossaire` | `[?terme]` si le texte est le terme de l'URL du glossaire ; sinon `[texte->url]` et avertissement |
+| `a.spip_in` vers un fichier de document (`IMG/…`, `[->doc8]`) | le résolveur retrouve le document par son fichier : `[->doc8]` |
 | Ancre vide (`a` avec `id` ou `name`, sans `href` ni texte) | `[nom<-]` |
 
 ### 4.2 Notes
 
-Les appels `a.spip_note` (dans `span.spip_note_ref`) sont associés aux notes de `div.notes` **présentes dans le même fragment**, par l'`id` cible. L'appel, avec l'espace qui le précède, est remplacé par `[[contenu]]`. Le contenu de la note est converti récursivement, ses paragraphes joints par `_ `. Une note numérotée à la main (numéro différent de celui que SPIP attribuerait) donne `[[<x>contenu]]`. Le bloc `div.notes` est ensuite retiré.
+Formes relevées (annexe B) : appel `<span class="spip_note_ref">&nbsp;[<a href="#nbN" class="spip_note" … id="nhN">N</a>]</span>` ; note `<div id="nbN"><p><span class="spip_note_ref">[<a href="#nhN" …>N</a>]&nbsp;</span>contenu</p><p>…</p></div>`, rendue par `#NOTES`.
+
+Les appels sont associés aux notes `div[id=nbN]` **présentes dans le même fragment** (dans un `div.notes` ou non). Le `span.spip_note_ref` de l'appel est remplacé par `[[contenu]]`. Le contenu de la note, sans son renvoi, est converti récursivement, ses paragraphes séparés par une ligne vide (SPIP les rend en `<p>`). Les numéros automatiques se suivent (1, 2…) en ignorant les notes numérotées à la main : un numéro différent du suivant attendu donne `[[<x>contenu]]`. Les `div` des notes, puis le `div.notes` vide, sont ensuite retirés.
 
 Cas incomplets :
 - appel sans note dans le fragment : l'appel est retiré, avertissement ;
@@ -129,18 +135,18 @@ Cas incomplets :
 
 | HTML | Sortie |
 |---|---|
-| `h2.spip` | `{{{…}}}` |
+| `h2.spip` | `{{{…}}}` (règle de l'écriture) |
 | `strong`, `em` | `{{…}}`, `{…}` |
-| `br.autobr` (si `autobr`) | retour simple |
-| autre `br` | `_ ` |
+| `br.autobr` | retour simple |
+| autre `br` (dont `br.manualbr`) | `_ ` |
 | `hr.spip` | `----` |
 | `ul.spip`, `ol.spip` | `-*`, `-#`, avec profondeur et listes mixtes (règles de wp2spip) |
-| `table.spip` | `\|\|légende\|résumé\|\|` puis `\| … \|` ; en-têtes `{{…}}` ; cellules fusionnées selon la capture ; classes `row_odd` et `row_even` ignorées |
+| `table.spip` | `\|\|légende\|résumé\|\|` (résumé lu dans `caption small.summary`) puis `\| … \|` ; en-têtes `{{…}}` ; `colspan` en `<` ; attributs `id`, `headers`, classes de rangées ignorés |
 | `blockquote.spip` | `<quote>…</quote>` |
-| `div.spip_poesie` | `<poesie>…</poesie>` |
-| bloc de code SPIP (cadre) | `<cadre>…</cadre>`, texte brut |
+| `blockquote.spip_poesie` (une ligne par `div`) | `<poesie>…</poesie>` |
+| `textarea.spip_cadre` | `<cadre>…</cadre>`, texte brut |
 | `code.spip_code` en ligne | `<code>…</code>`, texte brut |
-| HTML d'un modèle reconnu (§ 4.4) | `<docN\|left>`, `<imgN>`, `<embN>`, `<albumN\|left>`… |
+| HTML d'un modèle reconnu (§ 4.4) | `<docN\|left>`, `<albumN\|left>`… |
 | paragraphes `p` | séparés par une ligne vide |
 | autres éléments | règles du convertisseur de wp2spip |
 
@@ -155,7 +161,7 @@ interface ReconnaisseurModele {
 
 La passe Modèles parcourt l'arbre et propose chaque élément aux reconnaisseurs actifs. Le premier qui rend un raccourci remplace l'élément par un nœud raccourci. Un reconnaisseur ne peut pas savoir si un paramètre sans trace dans le HTML figurait dans le raccourci d'origine. Il signale donc par `Contexte::avertir()` que le modèle a des paramètres **non déductibles**, et les nomme, sans affirmer qu'ils ont été perdus.
 
-**Core** (`doc`, `img`, `emb`) : classes `spip_document_N`, `spip_documents_<align>` et structure des modèles de SPIP 4.4, relevées sur les captures.
+**Core** (`doc`, `img`, `emb`) : dans SPIP 4.4, `<docN>`, `<imgN>` et `<embN>` donnent le **même** HTML (annexe B) : `div.spip_document_N.spip_document`, alignement dans `spip_documents_<align>`. La forme canonique est donc `<docN|align>`, ou `<docN>` si l'alignement est celui que SPIP donne sans paramètre (relevé par la capture de `<docN>`).
 
 **Albums** (plugin Albums **4.4.1** : `modeles/album.html`, `modeles/album_fonctions.php`, `albums_fonctions.php`). Le modèle rend un `<figure class="album album_model …" id="modele_album_<id>">`. Les règles se fondent sur le code, pas sur le commentaire en tête de `album.html`, qui n'est plus à jour : il cite `ligne` et `mosaique`.
 
@@ -230,7 +236,7 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 1. SPIP-Cli autonome dans `vendor/`, puis `core:telecharger spip -R 4.4`, qui donne la dernière 4.4.x. La version est notée dans `tests/spip-jetable/VERSION` et affichée par les tests ;
 2. installation en SQLite dans `tests/spip-jetable/` (ignoré par git), administrateur avec un mot de passe aléatoire ;
 3. plugin html2spip lié depuis `spip/`, puis activé ; plugin Albums en **version fixée 4.4.1**, celle dont les règles du § 4.4 sont tirées, téléchargée depuis l'étiquette du dépôt git.spip.net puis activée. Sa version, lue dans `paquet.xml`, est notée dans `tests/spip-jetable/VERSION` avec celle de SPIP. Les tests échouent si elle diffère. Passer à une autre version d'Albums demande de relire les règles, puis de régénérer et revoir les captures ;
-4. configuration : `autobr` actif ;
+4. configuration : celle d'une installation neuve (`autobr` actif, URL `page`) ;
 5. chargement du corpus (§ 6.2) avec des **id fixes**, insérés explicitement, pour que les liens du corpus restent stables ;
 6. `--reinitialiser` : suppression complète et réinstallation.
 
@@ -327,3 +333,36 @@ En anglais, une insécable devant `:` `;` `!` `?` n'est jamais ajoutée par SPIP
 - Une insécable voulue par l'auteur à un endroit où SPIP en ajoute une (`a~:` en français) devient une espace normale. Le rendu est équivalent.
 - Les espaces normales qui entouraient une insécable dans la source sont perdues (fusion). Le rendu est équivalent.
 - Le pipeline `pre_typo`/`post_typo` d'un plugin peut ajouter d'autres transformations, qui ne sont pas inversées.
+
+## Annexe B — Formes HTML relevées sur SPIP 4.4.28
+
+Relevées le 2026-10-11 par `propre()` et `calculer_notes()` sur le SPIP de test de wp2spip (URL `page`, `autobr` actif). Les captures du corpus les remplacent dès qu'elles existent.
+
+| Source | HTML |
+|---|---|
+| `[->999]` (objet absent) | `<a href="spip.php?article999">article 999</a>` (sans classe) |
+| `[->aut1]` (objet présent) | `<a href="spip.php?auteur1" class="spip_in">Admin</a>` |
+| `[x\|bulle\|en->1]` | `<a href="spip.php?article1" title="bulle\|en">x</a>` |
+| `[spip->https://www.spip.net]` | `<a href="https://www.spip.net" class="spip_out" rel="external">spip</a>` |
+| URL nue | `<a href="…" class="spip_url spip_out auto" rel="nofollow external">…</a>` |
+| `[->a@b.fr]`, `[mail->mailto:a@b.fr]` | `<a href="mailto:a@b.fr" class="spip_mail">a@b.fr</a>`, `… class="spip_mail">mail</a>` |
+| `[?SPIP]` | `<a href="https://fr.wikipedia.org/wiki/SPIP" class="spip_glossaire" rel="external">SPIP</a>` |
+| `[texte->?SPIP]` | `<a href="?SPIP">texte</a>` : pas un lien de glossaire |
+| `[ici<-]` | `<a id="ici"></a>` |
+| `[->doc611]` | `<a href="IMG/jpg/canola2.jpg" class="spip_in" type='image/jpeg'>canola2</a>` |
+| `Un[[Note]]` | `Un<span class="spip_note_ref">&nbsp;[<a href="#nb1" class="spip_note" rel="appendix" title="Note" id="nh1">1</a>]</span>` |
+| `#NOTES` | `<div id="nb1">\n<p><span class="spip_note_ref">[<a href="#nh1" class="spip_note" title="Notes 1" rev="appendix">1</a>]&nbsp;</span>Note</p>\n</div>` ; `[[<xx>…]]` donne `nbxx`/`nhxx`, et la note automatique suivante garde le numéro 2 |
+| `{{{Inter}}}` | `<h2 class="spip">Inter</h2>` |
+| `-* a` / `-** b` | `<ul class="spip" role="list"><li> a\n<ul class="spip" role="list"><li> b</li></ul></li>…` |
+| `----` | `<hr class="spip" />` |
+| retour simple, `_ ` | `<br class='autobr' />`, `<br class='manualbr' />` |
+| tableau | `<table class="table spip" aria-describedby="…"><caption>Légende<br /> <small id="…" class="summary offscreen">Résumé</small></caption><thead><tr class='row_first'><th id='…'> A </th>…`, `<td colspan='2' headers='…'>x</td>` |
+| `<quote>` | `<blockquote class="spip">\n<p>cité</p>\n</blockquote>` |
+| `<cadre>` | `<textarea readonly='readonly' cols='40' rows='2' class='spip_cadre spip_cadre_block' dir='ltr'>a {{b}}</textarea>` |
+| `<code>` | `<code class='spip_code spip_code_inline' dir='ltr'>x&lt;y</code>` |
+| `<poesie>` | `<blockquote class="spip_poesie"><div>v1</div>\n<div>v2</div>\n</blockquote>` |
+| `<doc611\|left>`, `<img611>`, `<emb611\|right>`, `<img611\|center>` | même modèle : `<div class='spip_document_611 spip_document spip_documents spip_document_image spip_documents_left spip_document_left spip_document_avec_legende' …><figure class="spip_doc_inner"><img …/><figcaption class='spip_doc_legende'>…</figcaption></figure></div>` ; `<img611>` sans alignement donne `spip_documents_center` |
+| `<multi>[fr]Bonjour[en]Hello</multi>` | `<p>Bonjour</p>` |
+| typographie fr | `C&#8217;est&nbsp;: oui&nbsp;; non&nbsp;! quoi&nbsp;? &#171;&nbsp;a&nbsp;&#187; Mme&nbsp;X n&#176;&nbsp;5 10&nbsp;% a &mdash; b 10:30 a&nbsp;b` |
+
+`urls_decoder_url()` décode `spip.php?article12` en `['article', ['id_article' => '12', …], '']`, mais rend `null` pour `spip.php?page=article&id_article=3` et pour une URL suivie de `#ancre` : le résolveur retire l'ancre avant, et lit lui-même `page` et `id_<type>`.
