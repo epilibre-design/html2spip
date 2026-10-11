@@ -1,12 +1,14 @@
-# html2spip — conversion de HTML en raccourcis SPIP, et retour du HTML produit par SPIP
+# html2spip — un sale() amélioré : HTML en raccourcis SPIP, y compris le HTML produit par SPIP
 
 Date : 2026-10-11
-Origine : convertisseur de wp2spip (`inc/wp2spip_html.php`, spec `2026-10-09-wp2spip-convertisseur-html-design.md` du dépôt wp2spip).
-Statut : design validé par le mainteneur le 2026-10-11, corrigé après revue le même jour (notes, `<multi>`, extraction). **Volet ouvert** : règles de typographie (§ 4.4, annexe A), à relever dans le code de SPIP 4.4 en première tâche de la réalisation et à faire valider avant d'écrire la passe Typographie.
+Origine : convertisseur de wp2spip (`inc/wp2spip_html.php`, spec `2026-10-09-wp2spip-convertisseur-html-design.md` du dépôt wp2spip) et plugin [sale](https://git.spip.net/spip-contrib-extensions/sale).
+Statut : design validé par le mainteneur le 2026-10-11, puis **simplifié** le même jour à sa demande : pas d'extraction de page publique, pas de reconstruction de `<multi>`. **Volet ouvert** : règles de typographie (§ 4.4, annexe A), à relever dans le code de SPIP 4.4 en première tâche de la réalisation et à faire valider avant d'écrire la passe Typographie.
 
 ## 1. Objectif
 
-html2spip convertit du HTML en texte SPIP (raccourcis typographiques). Il reprend le convertisseur générique de wp2spip, et sait en plus **inverser le HTML produit par SPIP** : liens internes, notes, modèles, typographie, etc.
+html2spip est un **`sale()` amélioré**. Il convertit un fragment HTML en texte SPIP (raccourcis typographiques) en analysant un arbre HTML5, et non par une suite d'expressions régulières. Il reprend le convertisseur générique de wp2spip. Il reconnaît aussi ce que SPIP produit, comme sale le fait déjà en partie (modèles de documents, `cadre`, `code`, `poesie`, liens `spip.php?id_article=N`, `&nbsp;:`). Il ajoute les liens internes résolus, les notes, les ancres et l'inversion de la typographie.
+
+Il reste simple : il reçoit un fragment HTML et rend un texte. Ce qui ne peut pas être retrouvé (§ 4.7) est une limite documentée, pas un problème à résoudre.
 
 Exemple. Source : `Voir [->123] pour plus d'infos.`, où l'article 123 a pour titre « Titre de l'article ». Rendu par SPIP :
 
@@ -14,19 +16,23 @@ Exemple. Source : `Voir [->123] pour plus d'infos.`, où l'article 123 a pour ti
 <p>Voir <a href="Titre-de-l-article" class="spip_in">Titre de l’article</a> pour plus d’infos.</p>
 ```
 
-html2spip doit rendre `Voir [->123] pour plus d'infos.` : texte du lien égal au titre, donc lien sans texte, `’` rendu en `'`, insécables ajoutées par SPIP retirées.
+html2spip, avec le résolveur du site, doit rendre `Voir [->123] pour plus d'infos.` :
+- le texte du lien est égal au titre, donc le lien s'écrit sans texte ;
+- `’` est rendu en `'` ;
+- les insécables ajoutées par SPIP sont retirées.
 
 ## 2. Décisions
 
 | Sujet | Décision |
 |---|---|
-| Forme | Bibliothèque PHP pure (Composer, namespace `Html2Spip\`, sans SPIP) **et** plugin SPIP `html2spip` dans le même dépôt, qui fournit un résolveur appuyé sur la base et les URL du site |
-| Entrées | Sortie de `propre()` (avec `#NOTES`) **et** page publique complète (extraction du contenu, squelette dist d'abord) |
-| Critère de réussite | Principal : rendu identique, comparé sur le couple (rendu principal, rendu de `#NOTES`) (§ 6.4), et par langue pour `<multi>`. En plus : forme canonique documentée (§ 5), comparée à des sorties attendues |
-| `<multi>` | Rendu d'une seule langue : texte de cette langue. En option, plusieurs rendus (un par langue) alignés nœud par nœud : `<multi>` minimal reconstruit là où les textes diffèrent. La source d'origine n'est pas exigée : seul le rendu par langue doit être identique (§ 4.6) |
-| Modèles | Modèles du core SPIP 4.4 reconnus (`doc`, `img`, `emb` et ceux qu'ils appellent) ; registre extensible pour ceux des plugins ; modèle non reconnu gardé en HTML |
+| Forme | Bibliothèque PHP pure (Composer, namespace `Html2Spip\`, sans SPIP) **et** plugin SPIP `html2spip` dans le même dépôt. Le plugin fournit un résolveur appuyé sur la base et les URL du site, ainsi qu'une fonction `html2spip()` qui remplace `sale()` |
+| Entrée | Un fragment HTML : sortie de `propre()`, contenu d'un éditeur, HTML quelconque. Pas d'extraction de page publique ni de reconstitution des champs d'un objet (chapo, texte, ps) : ce serait un autre projet |
+| Critère de réussite | Pour les cas gérés : rendu identique, `propre(html2spip(propre(T))) == propre(T)`, notes comprises (§ 6.4). Sortie égale à une forme canonique attendue (§ 5). Pour les cas perdus (§ 4.7) : sortie attendue documentée, sans exigence de rendu identique |
+| `<multi>` | Non reconstruit : SPIP n'en rend qu'une langue, et html2spip convertit ce texte |
+| Notes | Recousues en `[[…]]` si l'appel et la note sont dans le fragment reçu. Sinon : appel retiré et avertissement émis, note orpheline gardée en paragraphe (§ 4.2) |
+| Modèles | Modèles du core SPIP 4.4 reconnus (`doc`, `img`, `emb` et ceux qu'ils appellent). Registre extensible pour ceux des plugins. Un modèle non reconnu est gardé en HTML |
 | wp2spip | Le cœur générique est extrait de wp2spip. Ce qui est propre à WordPress (`autop`, marqueurs `wp2spipbloc<N>`, raccourcis `[caption]`…) reste dans wp2spip, par options. La bascule de wp2spip est un second sous-projet |
-| Architecture | Deux étapes : reconnaissance des structures SPIP sur l'arbre DOM, puis conversion générique (approche A). Écartées : un seul parcours enrichi (logiques mêlées, notes à déplacer), inversion des règles TextWheel par expressions régulières (défauts de sale) |
+| Architecture | Deux étapes : reconnaissance des structures SPIP sur l'arbre DOM, puis conversion générique. Écartées : un seul parcours enrichi (logiques mêlées), expressions régulières sur le HTML (défauts de sale : retours arrière, imbrications mal appariées, texte perdu) |
 | PHP | 8.1 minimum, comme wp2spip : `Dom\HTMLDocument` à partir de 8.4, Masterminds HTML5-PHP avant |
 | Formes HTML | Jamais écrites de mémoire : chaque règle du § 4 est validée par une capture du SPIP 4.4 jetable |
 
@@ -34,19 +40,17 @@ html2spip doit rendre `Voir [->123] pour plus d'infos.` : texte du lien égal au
 
 ```
 src/                      Cœur PHP pur, namespace Html2Spip\
-  Convertisseur.php       Point d'entrée : convertir(string|array $html, Options $options): string
+  Convertisseur.php       Point d'entrée : convertir(string $html, ?Options $options = null): string
   Options.php
   Contexte.php            État d'une conversion, journal d'avertissements
   Arbre/                  Analyse HTML5 (Dom\HTMLDocument ou Masterminds), sérialisation
-  Multi/                  Étape 0 : alignement de N rendus, nœuds <multi>
   Reconnaissance/         Étape 1 : interface Passe::appliquer(Arbre, Contexte), une classe par passe
     Code, Notes, Modeles, Liens, Ancres, Tableaux, Intertitres, Typographie
   Ecriture/               Étape 2 : parcours générique extrait de wp2spip
-  Extraction/             Contenu d'une page publique (dist)
   Resolveur.php           Interface
   ResolveurNul.php        Aucun lien interne retrouvé
   ResolveurTableau.php    Données passées en tableau (tests, usage hors SPIP)
-spip/                     Plugin SPIP : paquet.xml, ResolveurSpip, commande spip-cli html2spip:convertir
+spip/                     Plugin SPIP : paquet.xml, ResolveurSpip, html2spip(), commande spip-cli html2spip:convertir
 tests/unit/               Sans SPIP
 tests/integration/        Avec le SPIP jetable
 tests/corpus/             Sources, captures, sorties attendues (§ 6)
@@ -55,9 +59,15 @@ scripts/installer-spip-jetable.sh
 
 ### 3.1 Flux
 
-HTML, ou N HTML pour `<multi>` → analyse en arbre HTML5 → étape 0 (Multi, si plusieurs rendus) → étape 1, passes dans cet ordre : **Code** (protège le texte brut), **Notes**, **Modèles**, **Liens**, **Ancres**, **Tableaux**, **Intertitres**, **Typographie** (en dernier, sur les nœuds texte restants) → étape 2 (écriture) → texte SPIP.
+Le HTML est analysé en arbre HTML5. Viennent ensuite deux étapes :
 
-Une passe remplace une structure reconnue par un **nœud raccourci** : un élément privé portant le texte SPIP déjà produit, que l'étape 2 recopie sans échappement. Une structure non reconnue, ou reconnue en partie, est laissée intacte et passe à la conversion générique. Le contenu n'est jamais perdu.
+1. **Reconnaissance**, passes dans cet ordre :
+   - **Code**, d'abord, pour protéger le texte brut ;
+   - **Notes**, **Modèles**, **Liens**, **Ancres**, **Tableaux**, **Intertitres** ;
+   - **Typographie**, en dernier, sur les nœuds texte restants.
+2. **Écriture** : conversion générique, qui produit le texte SPIP.
+
+Une passe remplace une structure reconnue par un **nœud raccourci**. C'est un élément privé qui porte le texte SPIP déjà produit, que l'étape 2 recopie sans échappement. Une structure non reconnue, ou reconnue en partie, est laissée intacte et passe à la conversion générique : le contenu n'est jamais perdu.
 
 ### 3.2 Résolveur
 
@@ -65,48 +75,50 @@ Une passe remplace une structure reconnue par un **nœud raccourci** : un élém
 interface Resolveur {
     /** Objet désigné par une URL du site : ['type' => 'article', 'id' => 123] ou null */
     public function objet(string $url): ?array;
-    /** Titre brut de l'objet (avant supprimer_numero et typo), ou null s'il n'existe pas */
-    public function titre(string $type, int $id): ?string;
-    /** Titre tel que SPIP l'affiche comme texte de lien (supprimer_numero + typo), ou null */
+    /** Titre tel que SPIP l'affiche comme texte de lien (supprimer_numero + typo), ou null s'il n'existe pas */
     public function titreAffiche(string $type, int $id): ?string;
 }
 ```
 
-`ResolveurSpip` (plugin) s'appuie sur `urls_decoder_url()`, `sql_*` et les fonctions de typo de SPIP. `ResolveurNul` est utilisé par défaut. Sans résolveur, un lien interne reste `[texte->url]`, à moins que l'URL ne contienne l'id (§ 4.1).
+`ResolveurSpip` (plugin) s'appuie sur `urls_decoder_url()`, `sql_*` et les fonctions de typo de SPIP. Le résolveur par défaut est `ResolveurNul`. Sans résolveur, un lien interne reste `[texte->url]`, sauf si l'URL contient le type et l'id (§ 4.1).
 
 ### 3.3 Options
 
 - `resolveur` : `ResolveurNul` par défaut.
 - `langue` : choisit la table de typographie à inverser (`fr` par défaut).
-- `passes` : passes actives. Liste vide : conversion générique seule (usage de wp2spip).
+- `passes` : passes actives. Une liste vide donne la conversion générique seule (usage de wp2spip).
 - `modeles` : registre des modèles reconnus (core par défaut, extensible).
 - `autobr` : vrai si le site rend les retours simples en `<br class="autobr">`.
 - `autop`, `marqueurs` : options de l'écriture reprises de wp2spip, pour son seul usage.
 
 ### 3.4 Erreurs
 
-Aucune exception sur du HTML mal formé : l'analyse HTML5 le répare. `Contexte::avertir()` journalise les abandons, par exemple lien interne non résolu, note sans appel ou appel sans note, modèle inconnu. `Convertisseur::avertissements()` les rend après conversion. La commande spip-cli les affiche avec `-v`.
+Aucune exception sur du HTML mal formé : l'analyse HTML5 le répare. `Contexte::avertir()` journalise les abandons : lien interne non résolu, appel sans note, note sans appel, modèle inconnu. `Convertisseur::avertissements()` les rend après conversion. La commande spip-cli les affiche avec `-v`.
 
-## 4. Règles d'inversion
+## 4. Règles
 
 Chaque règle est validée par une capture (§ 6.3). En cas d'écart, la capture fait foi et cette section est corrigée.
 
-### 4.1 Liens
+### 4.1 Liens et ancres
 
 | HTML produit par SPIP | Sortie |
 |---|---|
-| `a.spip_in` dont le résolveur trouve l'objet | Raccourci d'objet `123` (article), `rub5`, `br3`, `aut2`, `mot4`, `site7`, `doc8`, avec `#ancre` gardée. Texte du lien égal à `titreAffiche()` : `[->123]`, sinon `[texte->123]` |
+| `a.spip_in` dont le résolveur trouve l'objet | Raccourci d'objet : `123` (article), `rub5`, `br3`, `aut2`, `mot4`, `site7`, `doc8`, avec `#ancre` gardée. Si le texte du lien est égal à `titreAffiche()` : `[->123]`, sinon `[texte->123]` |
 | `title`, `hreflang` | `[texte\|bulle->123]`, `[texte\|bulle\|lang->123]` |
-| Lien interne non résolu, objet absent ou non publié | Si l'URL contient type et id (`spip.php?article999`, `article999.html`, `?page=…&id_article=…`) : raccourci `[texte->999]` et avertissement. Sinon : `[texte->url]` et avertissement |
+| Lien interne non résolu (objet absent, non publié, pas de résolveur) | Si l'URL contient le type et l'id (`spip.php?article999`, `article999.html`, `?page=…&id_article=…`) : raccourci `[texte->999]` et avertissement. Sinon : `[texte->url]` et avertissement |
 | `a.spip_out` | `[texte->url]` |
 | `mailto:` dont le texte est l'adresse | `[->adresse]` |
 | `a.spip_url.auto` (URL nue rendue en lien) | URL nue |
-| `a.spip_glossaire` | `[?terme]`, ou `[texte->?terme]` si le texte diffère du terme ; forme exacte selon la capture |
-| Ancre vide (`a` avec `id`/`name`, sans `href` ni texte) | `[nom<-]` |
+| `a.spip_glossaire` | `[?terme]`, ou `[texte->?terme]` si le texte diffère du terme ; la forme exacte suit la capture |
+| Ancre vide (`a` avec `id` ou `name`, sans `href` ni texte) | `[nom<-]` |
 
 ### 4.2 Notes
 
-Les appels `a.spip_note` (dans `span.spip_note_ref`) sont mis en correspondance avec les notes de `div.notes`, par l'`id` cible. L'appel et l'espace qui le précède sont remplacés par `[[contenu]]`, où le contenu de la note est converti récursivement (paragraphes joints par `_ `). Un numéro qui n'est pas celui qu'attribuerait SPIP (note numérotée à la main) donne `[[<x>contenu]]`. Une note sans appel reste en paragraphe à la fin du texte, avec un avertissement. Le bloc `div.notes` est ensuite retiré.
+Les appels `a.spip_note` (dans `span.spip_note_ref`) sont associés aux notes de `div.notes` **présentes dans le même fragment**, par l'`id` cible. L'appel, avec l'espace qui le précède, est remplacé par `[[contenu]]`. Le contenu de la note est converti récursivement, ses paragraphes joints par `_ `. Une note numérotée à la main (numéro différent de celui que SPIP attribuerait) donne `[[<x>contenu]]`. Le bloc `div.notes` est ensuite retiré.
+
+Cas incomplets :
+- appel sans note dans le fragment : l'appel est retiré, avertissement ;
+- note sans appel : elle est gardée en paragraphe à la fin du texte, avertissement.
 
 ### 4.3 Structures
 
@@ -118,13 +130,14 @@ Les appels `a.spip_note` (dans `span.spip_note_ref`) sont mis en correspondance 
 | autre `br` | `_ ` |
 | `hr.spip` | `----` |
 | `ul.spip`, `ol.spip` | `-*`, `-#`, avec profondeur et listes mixtes (règles de wp2spip) |
-| `table.spip` | `\|\|légende\|résumé\|\|` puis `\| … \|` ; en-têtes `{{…}}` ; cellules fusionnées selon la capture ; classes `row_odd`/`row_even` ignorées |
+| `table.spip` | `\|\|légende\|résumé\|\|` puis `\| … \|` ; en-têtes `{{…}}` ; cellules fusionnées selon la capture ; classes `row_odd` et `row_even` ignorées |
 | `blockquote.spip` | `<quote>…</quote>` |
 | `div.spip_poesie` | `<poesie>…</poesie>` |
 | bloc de code SPIP (cadre) | `<cadre>…</cadre>`, texte brut |
 | `code.spip_code` en ligne | `<code>…</code>`, texte brut |
 | HTML d'un modèle du registre (`spip_document_N`, `spip_documents_left`…) | `<docN\|left>`, `<imgN>`, `<embN>`… |
 | paragraphes `p` | séparés par une ligne vide |
+| autres éléments | règles du convertisseur de wp2spip |
 
 ### 4.4 Typographie
 
@@ -133,49 +146,32 @@ Règle : un caractère introduit par `typo()` n'est retiré que si `typo()` le r
 - `’` → `'` ;
 - espace insécable (U+00A0, ou fine U+202F) devant `:` `;` `!` `?` et à l'intérieur de `« »` : retirée ;
 - toute autre espace insécable : `~` ;
-- `« »` restent des caractères UTF-8 : rendu identique à `<<`/`>>`, et le texte se lit mieux.
+- `« »` restent des caractères UTF-8 : le rendu est identique à `<<`/`>>`, et le texte se lit mieux.
 
-La liste complète des transformations de `ecrire/typographie/fr.php` (et des autres langues gérées par SPIP 4.4) est relevée dans le code au début de la réalisation et ajoutée en annexe A. Une langue sans table n'a aucune inversion.
+La liste complète des transformations de `ecrire/typographie/fr.php`, et des autres langues gérées par SPIP 4.4, est relevée dans le code au début de la réalisation et forme l'annexe A. Une langue sans table n'a aucune inversion.
 
 ### 4.5 Échappement
 
-L'échappement de wp2spip est repris tel quel. Un texte qui ressemble à un raccourci SPIP est écrit en entités numériques (`{` `}` `[` `]` `|` `~`, `-` ou `_` en début de ligne), et `&` `<` `>` en entités. Le rendu est ainsi le même.
+L'échappement de wp2spip est repris tel quel. Un texte qui ressemble à un raccourci SPIP est écrit en entités numériques : `{` `}` `[` `]` `|` `~`, ainsi qu'un `-` ou un `_` en début de ligne. `&`, `<` et `>` sont écrits en entités. Le rendu reste ainsi le même.
 
-### 4.6 `<multi>`
+### 4.6 Ce que html2spip ne fait pas
 
-Les N rendus sont analysés, puis alignés sur leur structure : même suite d'éléments, en comparant nom, classes et attributs autres que le texte. Là où l'alignement réussit, chaque nœud texte qui diffère d'une langue à l'autre devient `<multi>[fr]…[en]…</multi>`. Des paragraphes entiers qui diffèrent donnent un `<multi>` en bloc. Si les structures divergent (nombre de paragraphes différent, par exemple), l'ensemble du texte est mis dans un `<multi>` unique et un avertissement est émis.
+- extraire le contenu d'une page publique, ou reconstituer les champs d'un objet (chapo, texte, ps) ;
+- reconstruire `<multi>` à partir de plusieurs rendus.
 
-Le `<multi>` d'origine n'est **pas toujours récupérable** : `<multi>[fr]Bonjour[en]Bonjour</multi>` et `Bonjour` donnent les mêmes rendus, et des structures différentes selon la langue déplacent les limites du bloc. La forme canonique se déduit des seuls rendus :
+### 4.7 Limites (cas perdus)
 
-- texte identique dans toutes les langues : pas de `<multi>` ;
-- textes différents dans des nœuds alignés : un `<multi>` par nœud texte, le plus petit possible (au niveau du nœud texte, pas du mot) ;
-- paragraphes différents en nombre ou en structure : un `<multi>` en bloc couvrant la plus petite suite de paragraphes qui diffère ;
-- langues dans l'ordre des rendus passés, sans `[lang]` vide.
+Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 
-Le test porte sur l'équivalence : pour chaque langue, le rendu de la sortie égale le rendu de la source (§ 6.4).
-
-### 4.7 Extraction d'une page publique
-
-L'extraction rend des **champs séparés** (`chapo`, `texte`, `ps`), et non un texte unique : les frontières entre champs sont conservées.
-
-Pour le squelette dist (`squelettes-dist/article.html` de SPIP 4.4), un registre décrit chaque champ par un sélecteur et les éléments de présentation à retirer :
-
-- `div.chapo`, `div.texte` : contenu du `div` ;
-- `div.ps` : contenu du `div`, **sans le `<hr />` initial** ajouté par le squelette (ligne 37) ;
-- `div.notes` : contenu du `div`, **sans le `<hr />` initial** (ligne 47) ; ce bloc regroupe les notes des trois champs, et chaque note est rendue au champ qui contient son appel ;
-- le `<hr />` et le paragraphe `hyperlien` (« Voir en ligne », ligne 36) sont ignorés : ils viennent de champs propres à l'article (`url_site`, `nom_site`), pas d'un texte.
-
-Le squelette applique `image_reduire{672,*}` au chapo, au texte et au ps. Les `<img>` réduites (dimensions et `src` d'une image calculée dans `local/cache-vignettes/`) doivent être reconnues par la passe Modèles comme celles du rendu `propre()`. Les captures de page publique le vérifient.
-
-Les autres squelettes s'ajoutent par le même registre. Si aucun champ n'est trouvé, un avertissement est émis et le `body` entier est converti comme champ `texte`.
-
-### 4.8 Limites
-
-Ne sont pas retrouvés : le contenu de `<html>…</html>` et de `<echappe>`, qui reste en HTML ; la forme exacte parmi des variantes équivalentes (`[->art123]` ou `[->123]`, `<<` ou `«`) ; les modèles non déclarés, qui restent en HTML ; les traitements de squelette autres que `propre()`.
+- `<multi>` : seul le texte de la langue rendue est gardé ;
+- notes dont l'appel ou le contenu n'est pas dans le fragment (§ 4.2) ;
+- contenu de `<html>…</html>` et de `<echappe>` : reste en HTML ;
+- forme exacte parmi des variantes équivalentes : `[->art123]` ou `[->123]`, `<<` ou `«` ;
+- modèles non déclarés : restent en HTML.
 
 ## 5. Forme canonique
 
-- Liens d'objet : `[->123]` si le texte est le titre affiché, sinon `[texte->123]` ; raccourcis courts (`123`, `rub5`…).
+- Liens d'objet : `[->123]` si le texte est le titre affiché, sinon `[texte->123]`, avec les raccourcis courts (`123`, `rub5`…).
 - Typographie : apostrophes droites, `« »` en caractères, `~` seulement pour les insécables voulues.
 - Paragraphes séparés par une ligne vide, aucun blanc en fin de ligne, aucune ligne vide en tête ni en fin.
 - Notes à leur place d'appel.
@@ -189,15 +185,18 @@ Ne sont pas retrouvés : le contenu de `<html>…</html>` et de `<echappe>`, qui
 1. SPIP-Cli autonome dans `vendor/`, puis `core:telecharger spip -R 4.4`, qui donne la dernière 4.4.x. La version est notée dans `tests/spip-jetable/VERSION` et affichée par les tests ;
 2. installation en SQLite dans `tests/spip-jetable/` (ignoré par git), administrateur avec un mot de passe aléatoire ;
 3. plugin html2spip lié depuis `spip/`, puis activé ;
-4. configuration : site multilingue (fr, en), `autobr` actif ;
+4. configuration : `autobr` actif ;
 5. chargement du corpus (§ 6.2) avec des **id fixes**, insérés explicitement, pour que les liens du corpus restent stables ;
 6. `--reinitialiser` : suppression complète et réinstallation.
 
 ### 6.2 Corpus
 
-`tests/corpus/sources/` contient un fichier par objet : un en-tête (type, id, titre, rubrique, langue, statut) suivi du texte SPIP. On y trouve aussi des documents versionnés (petites images, un PDF). Cas couverts :
+`tests/corpus/sources/` contient un fichier par objet : un en-tête (type, id, titre, rubrique, langue, statut, `limite` si l'objet illustre un cas perdu) suivi du texte SPIP. On y trouve aussi des documents versionnés (petites images, un PDF). Cas couverts :
 
-- liens vers article, rubrique, brève, auteur, mot, site et document ; avec et sans texte ; texte égal ou non au titre ; titres numérotés (`10. Titre`) ; titres contenant `'` ou `:` ; bulle, langue, `#ancre` ;
+- liens vers article, rubrique, brève, auteur, mot, site et document :
+  - avec et sans texte, texte égal ou non au titre ;
+  - titres numérotés (`10. Titre`), titres contenant `'` ou `:` ;
+  - bulle, langue, `#ancre` ;
 - liens cassés : `[->999]`, `[->rub999]`, ancre absente, objet non publié ;
 - liens externes, `mailto`, URL nues ;
 - glossaire : `[?terme]`, `[texte->?terme]` ;
@@ -208,36 +207,35 @@ Ne sont pas retrouvés : le contenu de `<html>…</html>` et de `<echappe>`, qui
 - tableaux : en-têtes, légende, résumé, cellules fusionnées ;
 - `<quote>`, `<cadre>`, `<code>`, `<poesie>` ;
 - `<docN|left>`, `<imgN>`, `<embN>` ;
-- `<multi>` en ligne et en blocs ;
 - typographie : `'`, `« »`, `<<>>`, `: ; ! ?`, `~` voulus ;
 - textes qui ressemblent à des raccourcis ;
-- `_ ` et retours simples.
+- `_ ` et retours simples ;
+- cas perdus (`limite`) : `<multi>`, `<html>`, `<echappe>`, modèle de plugin non déclaré.
 
 ### 6.3 Captures
 
-`tests/corpus/captures/<type_url>/` est produit par `spip php:eval` pour chaque article. Contenu de chaque capture :
-- `propre()` du texte (et du chapo, du ps) avec `#NOTES` ;
-- pour les articles contenant `<multi>`, un rendu par langue ;
-- la page publique dist (`recuperer_fond`).
-
-Les types d'URL couverts sont `page`, `html`, `propres` et `arbo`. Les captures sont **versionnées**, ce qui permet aux tests unitaires de tourner sans SPIP.
+`tests/corpus/captures/<type_url>/` est produit par `spip php:eval` pour chaque objet. Une capture contient `propre()` du texte, suivi du rendu de `#NOTES` dans le même fragment, comme le ferait un squelette qui les affiche ensemble. Les types d'URL couverts sont `page` et `propres` ; les autres passent par le même `urls_decoder_url()`. Les captures sont **versionnées**, ce qui permet aux tests unitaires de tourner sans SPIP.
 
 ### 6.4 Suites
 
-- **Unitaires** (sans SPIP) : une suite par passe, par l'écriture et par Multi, sur des extraits de captures, avec `ResolveurTableau`. On y ajoute les tests du convertisseur de wp2spip, repris pour l'étape 2.
-- **Intégration** (SPIP jetable), pour chaque article et chaque type d'URL :
-  - rendu identique, notes comprises : SPIP garde les notes dans un état global (`inc/notes`), et `#NOTES` les rend à part. Pour la source puis pour la sortie, l'état des notes est remis à zéro, `propre()` est appelé, puis le rendu des notes est lu. On compare le couple (rendu principal, rendu des notes) ; une conversion qui perd une note échoue donc ;
-  - forme canonique : sortie égale à `tests/corpus/attendus/<objet>.spip` ;
-  - captures régénérées égales aux captures versionnées ; un écart signale un changement de SPIP 4.4.x, à revoir avant de mettre à jour les captures ;
-  - `<multi>` : pour chaque langue, le couple (rendu principal, notes) de la sortie fusionnée égale celui de la source ; la sortie égale aussi la forme canonique attendue (§ 4.6), qui peut différer de la source ;
-  - page publique : pour chaque champ (`chapo`, `texte`, `ps`), l'extraction donne la même sortie que la capture `propre()` du champ ; aucun `----` venant des `<hr />` du squelette.
+- **Unitaires** (sans SPIP) : une suite par passe et pour l'écriture, sur des extraits de captures, avec `ResolveurTableau`. Les tests du convertisseur de wp2spip y sont ajoutés, repris pour l'étape 2.
+- **Intégration** (SPIP jetable), pour chaque objet et chaque type d'URL :
+  - **forme canonique** : la sortie égale `tests/corpus/attendus/<objet>.spip`, pour tous les objets, cas perdus compris ;
+  - **rendu identique**, sauf pour les objets `limite` :
+    - SPIP garde les notes dans un état global (`inc/notes`) et `#NOTES` les rend à part ;
+    - pour la source, puis pour la sortie : l'état des notes est remis à zéro, `propre()` est appelé, puis le rendu des notes est lu ;
+    - on compare le couple (rendu principal, rendu des notes), si bien qu'une conversion qui perd une note échoue ;
+  - **captures** : les captures régénérées égalent les captures versionnées. Un écart signale un changement de SPIP 4.4.x, à revoir avant de mettre à jour les captures.
 - `composer test` lance les tests unitaires. `composer test-integration` installe le SPIP jetable si besoin, puis lance tout.
 
 ## 7. Sous-projets
 
 1. **html2spip** (ce document) : cœur, plugin, SPIP jetable, corpus, tests.
-2. **Bascule de wp2spip** : wp2spip dépend de html2spip par Composer, passes de reconnaissance SPIP désactivées, options `autop` et marqueurs. Ses tests unitaires, d'intégration et `composer tests-import` servent de non-régression. `inc/wp2spip_html.php` est retiré.
+2. **Bascule de wp2spip** :
+   - wp2spip dépend de html2spip par Composer, avec les passes de reconnaissance SPIP désactivées et les options `autop` et marqueurs ;
+   - ses tests unitaires, d'intégration et `composer tests-import` servent de non-régression ;
+   - `inc/wp2spip_html.php` est retiré.
 
 ## Annexe A — Typographie de SPIP 4.4
 
-**Ouverte.** À relever dans `ecrire/typographie/*.php` en première tâche de la réalisation : chaque transformation, la règle d'inversion retenue et le test qui la couvre. Elle est soumise au mainteneur avant l'écriture de la passe Typographie ; le § 4.4 n'en donne que le principe et les règles certaines.
+**Ouverte.** À relever dans `ecrire/typographie/*.php` en première tâche de la réalisation : chaque transformation, la règle d'inversion retenue et le test qui la couvre. L'annexe est soumise au mainteneur avant l'écriture de la passe Typographie ; le § 4.4 n'en donne que le principe et les règles certaines.
