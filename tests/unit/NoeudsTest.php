@@ -37,6 +37,20 @@ final class NoeudsTest extends TestCase
 		$this->assertSame('2', $liens[1]->getAttribute('href'));
 	}
 
+	public function testConnecte(): void
+	{
+		// Dom\HTMLDocument et Masterminds ; DOMNode::$isConnected n'existe qu'à partir de PHP 8.3
+		foreach (array(Arbre::body(...), Arbre::bodyMasterminds(...)) as $analyser) {
+			$body = $analyser('<p><a href="1">a <b>x</b></a></p>');
+			$lien = Noeuds::descendants($body, 'a')[0];
+			$gras = Noeuds::descendants($body, 'b')[0];
+			$this->assertTrue(Noeuds::connecte($gras));
+			$lien->remove();
+			$this->assertFalse(Noeuds::connecte($lien));
+			$this->assertFalse(Noeuds::connecte($gras));
+		}
+	}
+
 	public function testTexteNormalise(): void
 	{
 		$this->assertSame('L’article cible : premier', Noeuds::texteNormalise(" L’article\u{a0}cible \u{a0}: \n premier "));

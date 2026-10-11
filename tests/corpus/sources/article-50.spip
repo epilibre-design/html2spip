@@ -1,0 +1,11 @@
+type: article
+id: 50
+titre: Notes
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+Un appel[[Une note simple.]] puis un second[[Une note avec du {{gras}}, un [lien->https://www.spip.net] et
+
+un second paragraphe.]] puis une note numérotée à la main[[<xx>Note xx.]] et une note automatique[[Encore une note.]].

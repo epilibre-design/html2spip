@@ -85,11 +85,4 @@ final class LiensTest extends TestCase
 		$this->assertNull(Liens::objetDansUrl('Une-page'));
 		$this->assertNull(Liens::objetDansUrl('https://e.test/spip.php?article12'));
 	}
-
-	public function testNoteIgnoree(): void
-	{
-		// Les appels de note sont laissés à la passe Notes
-		$html = '<p>a<span class="spip_note_ref">&nbsp;[<a href="#nb1" class="spip_note" rel="appendix" id="nh1">1</a>]</span></p>';
-		$this->assertStringContainsString('[1->#nb1]', (new Convertisseur(new Options(passes: array('liens'))))->convertir($html));
-	}
 }

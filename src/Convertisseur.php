@@ -17,6 +17,7 @@ final class Convertisseur
 	 */
 	private const CLASSES = array(
 		'code' => Reconnaissance\Code::class,
+		'notes' => Reconnaissance\Notes::class,
 		'liens' => Reconnaissance\Liens::class,
 		'tableaux' => Reconnaissance\Tableaux::class,
 		'typographie' => Reconnaissance\Typographie::class,

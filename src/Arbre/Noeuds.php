@@ -72,7 +72,7 @@ final class Noeuds
 
 	/**
 	 * Éléments descendants, dans l'ordre du document, en liste figée : l'arbre peut être modifié pendant le parcours
-	 * (un élément retiré garde sa place dans la liste ; isConnected dit s'il est encore dans le document)
+	 * (un élément retiré garde sa place dans la liste ; self::connecte() dit s'il est encore dans le document)
 	 *
 	 * @param \Dom\Element|\DOMElement $racine
 	 * @param string $nom nom d'élément, ou * pour tous
@@ -80,6 +80,30 @@ final class Noeuds
 	 */
 	public static function descendants($racine, string $nom = '*'): array {
 		return iterator_to_array($racine->getElementsByTagName($nom), false);
+	}
+
+	/**
+	 * Nœud encore dans son document (un nœud retiré, ou dont un ancêtre a été retiré, ne l'est plus)
+	 *
+	 * DOMNode::$isConnected n'existe qu'à partir de PHP 8.3 : avant, les parents sont remontés jusqu'au document.
+	 * Avec DOMDocument, un sous-arbre retiré dont plus rien ne tient la racine est libéré par libxml : lire un de ses
+	 * nœuds lève une Error (« Node no longer exists »), et ce nœud n'est plus dans le document.
+	 *
+	 * @param \Dom\Node|\DOMNode $noeud
+	 */
+	public static function connecte($noeud): bool {
+		try {
+			if (property_exists($noeud, 'isConnected')) {
+				return $noeud->isConnected;
+			}
+			while ($noeud->parentNode) {
+				$noeud = $noeud->parentNode;
+			}
+			return $noeud->nodeType === XML_DOCUMENT_NODE or $noeud->nodeType === XML_HTML_DOCUMENT_NODE;
+		}
+		catch (\Error $erreur) {
+			return false;
+		}
 	}
 
 	/**

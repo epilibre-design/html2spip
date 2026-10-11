@@ -6,7 +6,7 @@
  * la copie livrée dans lib/masterminds-html5/. Seule cette classe connaît les classes du parseur : le reste de
  * html2spip manipule les nœuds par elle et par les propriétés et méthodes communes aux deux familles de classes
  * (localName, childNodes, textContent, data, attributes, getAttribute(), setAttribute(), hasAttribute(),
- * replaceWith(), remove(), appendChild(), before(), isConnected, ownerDocument).
+ * replaceWith(), remove(), appendChild(), before(), ownerDocument ; isConnected par Noeuds::connecte()).
  */
 
 namespace Html2Spip\Arbre;
