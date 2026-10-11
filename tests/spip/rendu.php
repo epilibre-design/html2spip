@@ -12,6 +12,9 @@ function html2spip_test_rendu(string $texte, string $lang = 'fr'): string {
 	include_spip('inc/texte');
 	include_spip('inc/lang');
 	include_spip('public/fonctions');
+	// Fichiers _fonctions des plugins (medias_modeles_styliser() pour <docN>…), chargés sinon au premier squelette
+	// calculé : sans eux, le premier modèle du processus n'est pas trouvé
+	include_fichiers_fonctions();
 	$notes = charger_fonction('notes', 'inc');
 	$notes('', 'reset_all');
 	changer_typo($lang);
