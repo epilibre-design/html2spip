@@ -1,0 +1,17 @@
+<paquet
+	prefix="html2spip"
+	categorie="edition"
+	version="0.1.0"
+	etat="dev"
+	compatibilite="[4.4.0;4.4.*]"
+	documentation=""
+>
+	<nom>html2spip</nom>
+	<!-- Conversion de HTML en raccourcis SPIP, y compris le HTML produit par SPIP : un sale() amélioré -->
+
+	<auteur lien="https://www.mukt.fr">Mukt</auteur>
+	<licence>GNU/GPL v3</licence>
+
+	<!-- Analyse du HTML : Dom\HTMLDocument (PHP 8.4), sinon Masterminds HTML5-PHP de lib/ -->
+	<necessite nom="php" compatibilite="[8.1.0;]" />
+</paquet>

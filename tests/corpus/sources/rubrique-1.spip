@@ -1,0 +1,7 @@
+type: rubrique
+id: 1
+titre: Rubrique du corpus
+id_parent: 0
+statut: publie
+lang: fr
+---
