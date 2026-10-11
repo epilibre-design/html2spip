@@ -159,7 +159,11 @@ La passe Modèles parcourt l'arbre et propose chaque élément aux reconnaisseur
 
 **Albums** (plugin Albums **4.4.1** : `modeles/album.html`, `modeles/album_fonctions.php`, `albums_fonctions.php`). Le modèle rend un `<figure class="album album_model …" id="modele_album_<id>">`. Les règles se fondent sur le code, pas sur le commentaire en tête de `album.html`, qui n'est plus à jour : il cite `ligne` et `mosaique`.
 
-Les valeurs par défaut du site comptent : la disposition (paramètre, puis constante `_ALBUMS_DISPOSITION`, puis configuration `albums/disposition`, puis `inline`) et la position de la légende (paramètre, puis `_ALBUMS_POSITION_LEGENDE`). Le reconnaisseur les reçoit en option. Le plugin SPIP les lit sur le site, et en leur absence les valeurs d'Albums sont prises.
+Les valeurs par défaut du site comptent :
+- la disposition : paramètre, puis constante `_ALBUMS_DISPOSITION`, puis configuration `albums/disposition`, puis la **première** disposition de `albums_decrire_dispositions()` **après** le pipeline du même nom (`inline` sans autre plugin) ;
+- la position de la légende : paramètre, puis `_ALBUMS_POSITION_LEGENDE`.
+
+Le reconnaisseur reçoit ces défauts calculés en option, ainsi que la liste des dispositions et de leur `modele_doc`. Le plugin SPIP les calcule sur le site par les mêmes fonctions qu'Albums (constantes, `lire_config()`, `albums_decrire_dispositions()`), pipeline compris. Hors SPIP, sans option, les valeurs d'Albums 4.4.1 sont prises (`inline`, pas de position).
 
 | Dans le HTML | Paramètre retrouvé |
 |---|---|
@@ -171,7 +175,7 @@ Les valeurs par défaut du site comptent : la disposition (paramètre, puis cons
 | classe `album_caption-<position>`, écrite seulement si `position_legende` ou `_ALBUMS_POSITION_LEGENDE` est défini | `position_legende=…` sauf si la valeur est celle de `_ALBUMS_POSITION_LEGENDE` sur le site |
 | classe `album__doc_<modele_doc>` des documents (`#ALBUM_DOC`) | `modele_doc=…` si elle diffère du modèle de la disposition (`doc` ou `file_album`) |
 | autres classes du `figure` : hors `album`, `album_model`, `album_<disposition>`, `album_images`/`album_mixed` (calculées), `album_caption-*`, alignement, `vignettes` | `classe=…` |
-| `figcaption` absent alors que l'album a un titre ou un descriptif | `masquer_legende=oui` |
+| `figcaption` absent alors que l'album a un titre, un descriptif **ou des crédits** (`champAffiche`) : le modèle affiche la légende dès que l'un des trois est renseigné | `masquer_legende=oui` |
 | `.album__heading`, `.album__text`, `.album__credits` | rien s'ils égalent `champAffiche('album', id, …)` ; sinon `titre=…`, `descriptif=…`, `credits=…` |
 
 Paramètres **non déductibles** : `largeur`, `hauteur`, `recadrer_ratio`, `recadrer_sens`, `par`, `sens`, `pagination`, `pagination_type`, `media`, `extension`, `mode`, `vu`. Leurs effets (images retaillées, ordre, filtrage) ne se lisent pas de façon fiable dans le HTML. L'avertissement les nomme comme non déductibles pour chaque album reconnu. Il ne dit pas qu'ils étaient présents.
@@ -250,7 +254,8 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 - `<docN|left>`, `<imgN>`, `<embN>` ;
 - albums :
   - `<albumN>`, par objet (`objet`, `id_objet`), par liste de documents (`id_document`) ;
-  - avec chaque disposition (`inline` par défaut, `line`, `mosaic`, `masonry`, `list`, `browse`, `simple`), alignement, `position_legende`, `classe`, `modele_doc`, `masquer_legende`, titre personnalisé ;
+  - avec chaque disposition (`inline` par défaut, `line`, `mosaic`, `masonry`, `list`, `browse`, `simple`), alignement, `position_legende`, `classe`, `modele_doc`, `masquer_legende` (dont un album qui n'a que des crédits), titre personnalisé ;
+  - défaut du site changé par `albums/disposition`, et par une disposition ajoutée en tête par le pipeline `albums_decrire_dispositions` (petit plugin de test) ;
   - albums dont un paramètre non déductible change le rendu (`largeur`, `recadrer_ratio`, `par`, `pagination`, `media`) : marqués `limite`, donc exclus du test de rendu identique ;
 - typographie, en français et en anglais : chaque règle de l'annexe A ; `~` voulus (entre deux mots, devant un signe où SPIP n'en met pas) ; `10:30`, `::`, `[?…]`, `(!)` sans insécable ; abréviations ; `--` et `---` ; `« »` et `“ ”` ;
 - textes qui ressemblent à des raccourcis ;
