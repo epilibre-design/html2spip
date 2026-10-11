@@ -2,7 +2,7 @@
 
 Date : 2026-10-11
 Origine : convertisseur de wp2spip (`inc/wp2spip_html.php`, spec `2026-10-09-wp2spip-convertisseur-html-design.md` du dépôt wp2spip) et plugin [sale](https://git.spip.net/spip-contrib-extensions/sale).
-Statut : design validé par le mainteneur le 2026-10-11 ; formes HTML relevées sur SPIP 4.4.28 avant le plan (annexe B) ; puis **simplifié** le même jour à sa demande : pas d'extraction de page publique, pas de reconstruction de `<multi>`. Reconnaissance des modèles de plugins ajoutée le même jour, avec Albums en premier (§ 4.4). Règles de typographie relevées dans le code de SPIP 4.4.21 le même jour (§ 4.5, annexe A) ; plus aucun volet ouvert.
+Statut : design validé par le mainteneur le 2026-10-11 ; formes HTML relevées sur SPIP 4.4.28 avant le plan (annexe B) ; puis **simplifié** le même jour à sa demande : pas d'extraction de page publique, pas de reconstruction de `<multi>`. Règles de typographie relevées dans le code de SPIP 4.4.21 le même jour (§ 4.5, annexe A) ; plus aucun volet ouvert. **Réduit au minimum** le même jour à sa demande : seuls les modèles dist (`doc`, `img`, `emb`) sont reconnus, sans mécanisme d'extension ni reconnaissance de modèles de plugins (Albums retiré), car les modèles personnalisés sont trop nombreux.
 
 ## 1. Objectif
 
@@ -30,7 +30,7 @@ html2spip, avec le résolveur du site, doit rendre `Voir [->123] pour plus d'inf
 | Critère de réussite | Pour les cas gérés : rendu équivalent, `propre(html2spip(propre(T)))` ≡ `propre(T)`, notes comprises, l'équivalence étant comparée sur l'arbre HTML et non sur la chaîne (§ 6.4). Sortie égale à une forme canonique attendue (§ 5). Pour les cas perdus (§ 4.8) : sortie attendue documentée, sans exigence de rendu équivalent |
 | `<multi>` | Non reconstruit : SPIP n'en rend qu'une langue, et html2spip convertit ce texte |
 | Notes | Recousues en `[[…]]` si l'appel et la note sont dans le fragment reçu. Sinon : appel retiré et avertissement émis, note orpheline gardée en paragraphe (§ 4.2) |
-| Modèles | Interface `ReconnaisseurModele` (§ 4.4). Reconnaisseurs fournis : modèles du core SPIP 4.4 (`doc`, `img`, `emb` et ceux qu'ils appellent) et, en option, `<album>` du plugin Albums. Ils dépendent du HTML produit, pas du code des plugins. Un modèle non reconnu est gardé en HTML. Un paquet séparé par plugin (`html2spip-albums`…) ne se justifierait que si ces reconnaisseurs alourdissaient le cœur |
+| Modèles | Seuls les modèles dist de SPIP 4.4 sont reconnus : `doc`, `img`, `emb` (§ 4.4). Aucune interface ni registre de reconnaisseurs, aucun modèle de plugin : les modèles personnalisés sont trop nombreux. Tout autre modèle passe à la conversion générique, comme du HTML quelconque |
 | wp2spip | Le cœur générique est extrait de wp2spip. Ce qui est propre à WordPress (`autop`, marqueurs `wp2spipbloc<N>`, raccourcis `[caption]`…) reste dans wp2spip, par options. La bascule de wp2spip est un second sous-projet |
 | Architecture | Deux étapes : reconnaissance des structures SPIP sur l'arbre DOM, puis conversion générique. Écartées : un seul parcours enrichi (logiques mêlées), expressions régulières sur le HTML (défauts de sale : retours arrière, imbrications mal appariées, texte perdu) |
 | PHP | 8.1 minimum, comme wp2spip : `Dom\HTMLDocument` à partir de 8.4, Masterminds HTML5-PHP avant |
@@ -47,9 +47,6 @@ src/                      Cœur PHP pur, namespace Html2Spip\
   Reconnaissance/         Étape 1 : interface Passe::appliquer(Element $body, Contexte), une classe par passe
     Code, Notes, Modeles, Liens, Tableaux, Typographie
   Ecriture/               Étape 2 : parcours générique extrait de wp2spip
-  Modeles/                Interface ReconnaisseurModele, registre
-    Core/                 doc, img, emb (SPIP 4.4)
-    Plugins/              Albums (album), en option
   Resolveur.php           Interface
   ResolveurNul.php        Aucun lien interne retrouvé
   ResolveurTableau.php    Données passées en tableau (tests, usage hors SPIP)
@@ -84,8 +81,6 @@ interface Resolveur {
     public function objet(string $url): ?array;
     /** Titre tel que SPIP l'affiche comme texte de lien (supprimer_numero + typo), ou null s'il n'existe pas */
     public function titreAffiche(string $type, int $id): ?string;
-    /** Champ d'un objet tel qu'un modèle l'affiche : titre (supprimer_numero + typo), descriptif (propre)…, ou null */
-    public function champAffiche(string $type, int $id, string $champ): ?string;
 }
 ```
 
@@ -96,12 +91,11 @@ interface Resolveur {
 - `resolveur` : `ResolveurNul` par défaut.
 - `langue` : choisit la table de typographie à inverser (`fr` par défaut).
 - `passes` : passes actives. Une liste vide donne la conversion générique seule (usage de wp2spip).
-- `modeles` : reconnaisseurs actifs (ceux du core par défaut ; `Albums` à ajouter ; extensible par l'appelant). Le plugin SPIP active `Albums` si le plugin Albums est actif.
 - `autop`, `marqueurs` : options de l'écriture reprises de wp2spip, pour son seul usage.
 
 ### 3.4 Erreurs
 
-Aucune exception sur du HTML mal formé : l'analyse HTML5 le répare. `Contexte::avertir()` journalise les abandons : lien interne non résolu, appel sans note, note sans appel, modèle inconnu. `Convertisseur::avertissements()` les rend après conversion. La commande spip-cli les affiche avec `-v`.
+Aucune exception sur du HTML mal formé : l'analyse HTML5 le répare. `Contexte::avertir()` journalise les abandons : lien interne non résolu, appel sans note, note sans appel. `Convertisseur::avertissements()` les rend après conversion. La commande spip-cli les affiche avec `-v`.
 
 ## 4. Règles
 
@@ -146,45 +140,15 @@ Cas incomplets :
 | `blockquote.spip_poesie` (une ligne par `div`) | `<poesie>…</poesie>` |
 | `textarea.spip_cadre` | `<cadre>…</cadre>`, texte brut |
 | `code.spip_code` en ligne | `<code>…</code>`, texte brut |
-| HTML d'un modèle reconnu (§ 4.4) | `<docN\|left>`, `<albumN\|left>`… |
+| HTML d'un modèle reconnu (§ 4.4) | `<docN\|left>` |
 | paragraphes `p` | séparés par une ligne vide |
 | autres éléments | règles du convertisseur de wp2spip |
 
 ### 4.4 Modèles
 
-```php
-interface ReconnaisseurModele {
-    /** Raccourci du modèle dont l'élément est la racine (ex. "<album12|left>"), ou null s'il n'est pas reconnu */
-    public function reconnaitre(Element $element, Contexte $contexte): ?string;
-}
-```
+La passe Modèles ne reconnaît que les modèles dist `doc`, `img` et `emb`. Dans SPIP 4.4, `<docN>`, `<imgN>` et `<embN>` donnent le **même** HTML (annexe B) : `div.spip_document_N.spip_document`, alignement dans `spip_documents_<align>`. La forme canonique est donc `<docN|align>`, ou `<docN>` si l'alignement est celui que SPIP donne sans paramètre (`center`, relevé par la capture de `<docN>`). Les autres paramètres (`largeur`, `hauteur`…) ne sont pas recherchés.
 
-La passe Modèles parcourt l'arbre et propose chaque élément aux reconnaisseurs actifs. Le premier qui rend un raccourci remplace l'élément par un nœud raccourci. Un reconnaisseur ne peut pas savoir si un paramètre sans trace dans le HTML figurait dans le raccourci d'origine. Il signale donc par `Contexte::avertir()` que le modèle a des paramètres **non déductibles**, et les nomme, sans affirmer qu'ils ont été perdus.
-
-**Core** (`doc`, `img`, `emb`) : dans SPIP 4.4, `<docN>`, `<imgN>` et `<embN>` donnent le **même** HTML (annexe B) : `div.spip_document_N.spip_document`, alignement dans `spip_documents_<align>`. La forme canonique est donc `<docN|align>`, ou `<docN>` si l'alignement est celui que SPIP donne sans paramètre (relevé par la capture de `<docN>`).
-
-**Albums** (plugin Albums **4.4.1** : `modeles/album.html`, `modeles/album_fonctions.php`, `albums_fonctions.php`). Le modèle rend un `<figure class="album album_model …" id="modele_album_<id>">`. Les règles se fondent sur le code, pas sur le commentaire en tête de `album.html`, qui n'est plus à jour : il cite `ligne` et `mosaique`.
-
-Les valeurs par défaut du site comptent :
-- la disposition : paramètre, puis constante `_ALBUMS_DISPOSITION`, puis configuration `albums/disposition`, puis la **première** disposition de `albums_decrire_dispositions()` **après** le pipeline du même nom (`inline` sans autre plugin) ;
-- la position de la légende : paramètre, puis `_ALBUMS_POSITION_LEGENDE`.
-
-Le reconnaisseur reçoit ces défauts calculés en option, ainsi que la liste des dispositions et de leur `modele_doc`. Le plugin SPIP les calcule sur le site par les mêmes fonctions qu'Albums (constantes, `lire_config()`, `albums_decrire_dispositions()`), pipeline compris. Hors SPIP, sans option, les valeurs d'Albums 4.4.1 sont prises (`inline`, pas de position).
-
-| Dans le HTML | Paramètre retrouvé |
-|---|---|
-| `id="modele_album_12"` (`calculer_id_modele_album()`) | `<album12>` (`id_album`) |
-| `id="modele_album_article_5"` | `<album\|objet=article\|id_objet=5>` |
-| `id="modele_album_documents_<md5>"` | `id_document=3,4,7`, lu dans les classes `spip_document_N` des `li.album__item` (`#ALBUM_DOC`), dans l'ordre affiché |
-| classe `album_<disposition>`, **toujours présente** : `#ALBUM_PARAMS` calcule toujours une disposition | valeurs de `albums_decrire_dispositions()` : `inline`, `masonry`, `mosaic`, `line`, `list`, `browse`, `simple`, et celles qu'ajoute le pipeline `albums_decrire_dispositions`. `disposition=…` est écrit sauf si la valeur est la disposition par défaut du site |
-| classe `left`, `right` ou `center` | alignement `\|left`… |
-| classe `album_caption-<position>`, écrite seulement si `position_legende` ou `_ALBUMS_POSITION_LEGENDE` est défini | `position_legende=…` sauf si la valeur est celle de `_ALBUMS_POSITION_LEGENDE` sur le site |
-| classe `album__doc_<modele_doc>` des documents (`#ALBUM_DOC`) | `modele_doc=…` si elle diffère du modèle de la disposition (`doc` ou `file_album`) |
-| autres classes du `figure` : hors `album`, `album_model`, `album_<disposition>`, `album_images`/`album_mixed` (calculées), `album_caption-*`, alignement, `vignettes` | `classe=…` |
-| `figcaption` absent alors que l'album a un titre, un descriptif **ou des crédits** (`champAffiche`) : le modèle affiche la légende dès que l'un des trois est renseigné | `masquer_legende=oui` |
-| `.album__heading`, `.album__text`, `.album__credits` | rien s'ils égalent `champAffiche('album', id, …)` ; sinon `titre=…`, `descriptif=…`, `credits=…` |
-
-Paramètres **non déductibles** : `largeur`, `hauteur`, `recadrer_ratio`, `recadrer_sens`, `par`, `sens`, `pagination`, `pagination_type`, `media`, `extension`, `mode`, `vu`. Leurs effets (images retaillées, ordre, filtrage) ne se lisent pas de façon fiable dans le HTML. L'avertissement les nomme comme non déductibles pour chaque album reconnu. Il ne dit pas qu'ils étaient présents.
+Tout autre HTML de modèle (modèle de plugin ou de squelette) n'est pas identifié : il passe à la conversion générique, comme du HTML quelconque.
 
 ### 4.5 Typographie
 
@@ -217,8 +181,8 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 - notes dont l'appel ou le contenu n'est pas dans le fragment (§ 4.2) ;
 - contenu de `<html>…</html>` : converti comme du HTML quelconque (`<b>` y devient `{{…}}`) ;
 - forme exacte parmi des variantes équivalentes : `[->art123]` ou `[->123]`, `a:` ou `a :`, `--` ou `—` ;
-- modèles non reconnus : restent en HTML ;
-- paramètres de modèles sans trace dans le HTML (§ 4.4).
+- modèles autres que `doc`, `img`, `emb` : convertis comme du HTML quelconque ;
+- paramètres des modèles `doc`, `img`, `emb` autres que l'alignement (§ 4.4).
 
 ## 5. Forme canonique
 
@@ -235,7 +199,7 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 
 1. SPIP-Cli autonome dans `vendor/`, puis `core:telecharger spip -R 4.4`, qui donne la dernière 4.4.x. La version est notée dans `tests/spip-jetable/VERSION` et affichée par les tests ;
 2. installation en SQLite dans `tests/spip-jetable/` (ignoré par git), administrateur avec un mot de passe aléatoire ;
-3. plugin html2spip lié depuis `spip/`, puis activé ; plugin Albums en **version fixée 4.4.1**, celle dont les règles du § 4.4 sont tirées, téléchargée depuis l'étiquette du dépôt git.spip.net puis activée. Sa version, lue dans `paquet.xml`, est notée dans `tests/spip-jetable/VERSION` avec celle de SPIP. Les tests échouent si elle diffère. Passer à une autre version d'Albums demande de relire les règles, puis de régénérer et revoir les captures ;
+3. plugin html2spip lié depuis `spip/`, puis activé. Aucun autre plugin ;
 4. configuration : celle d'une installation neuve (`autobr` actif, URL `page`) ;
 5. chargement du corpus (§ 6.2) avec des **id fixes**, insérés explicitement, pour que les liens du corpus restent stables ;
 6. `--reinitialiser` : suppression complète et réinstallation.
@@ -258,15 +222,10 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 - tableaux : en-têtes, légende, résumé, cellules fusionnées ;
 - `<quote>`, `<cadre>`, `<code>`, `<poesie>` ;
 - `<docN|left>`, `<imgN>`, `<embN>` ;
-- albums :
-  - `<albumN>`, par objet (`objet`, `id_objet`), par liste de documents (`id_document`) ;
-  - avec chaque disposition (`inline` par défaut, `line`, `mosaic`, `masonry`, `list`, `browse`, `simple`), alignement, `position_legende`, `classe`, `modele_doc`, `masquer_legende` (dont un album qui n'a que des crédits), titre personnalisé ;
-  - défaut du site changé par `albums/disposition`, et par une disposition ajoutée en tête par le pipeline `albums_decrire_dispositions` (petit plugin de test) ;
-  - albums dont un paramètre non déductible change le rendu (`largeur`, `recadrer_ratio`, `par`, `pagination`, `media`) : marqués `limite`, donc exclus du test de rendu équivalent ;
 - typographie, en français et en anglais : chaque règle de l'annexe A ; `C’est` tapé avec `’` dans la source (rendu en caractère par SPIP, sortie `C'est` rendue en `&#8217;`) ; `~` voulus (entre deux mots, devant un signe où SPIP n'en met pas) ; `10:30`, `::`, `[?…]`, `(!)` sans insécable ; abréviations ; `--` et `---` ; `« »` et `“ ”` ;
 - textes qui ressemblent à des raccourcis ;
 - `_ ` et retours simples ;
-- cas perdus (`limite`) : `<multi>`, `<html>`, modèle de plugin non reconnu (modèle du plugin de test `html2spip_test`).
+- cas perdus (`limite`) : `<multi>`, `<html>`, modèle dist `<docN|largeur=…>` (paramètre perdu).
 
 ### 6.3 Captures
 
@@ -274,7 +233,7 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 
 ### 6.4 Suites
 
-- **Unitaires** (sans SPIP) : une suite par passe, par reconnaisseur de modèle et pour l'écriture, sur des extraits de captures, avec `ResolveurTableau`. Les tests du convertisseur de wp2spip y sont ajoutés, repris pour l'étape 2.
+- **Unitaires** (sans SPIP) : une suite par passe et pour l'écriture, sur des extraits de captures, avec `ResolveurTableau`. Les tests du convertisseur de wp2spip y sont ajoutés, repris pour l'étape 2.
 - **Intégration** (SPIP jetable), pour chaque objet et chaque type d'URL :
   - **forme canonique** : la sortie égale `tests/corpus/attendus/<objet>.spip`, pour tous les objets, cas perdus compris ;
   - **rendu équivalent**, sauf pour les objets `limite` :
