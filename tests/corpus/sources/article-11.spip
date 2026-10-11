@@ -1,0 +1,11 @@
+type: article
+id: 11
+titre: Faux raccourcis
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+Des accolades &#123;&#123;pas du gras&#125;&#125;, des crochets &#91;pas un lien&#93;, une barre &#124; et un tilde &#126;.
+
+&#45; ce tiret n'ouvre pas de liste, &#95; ce souligné non plus.

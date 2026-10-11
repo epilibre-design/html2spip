@@ -1,0 +1,12 @@
+type: article
+id: 71
+titre: HTML brut
+id_rubrique: 1
+statut: publie
+lang: fr
+limite: oui
+date: 2026-01-01 00:00:00
+---
+Avant.
+
+<html><b>gras en HTML</b></html>

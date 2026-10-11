@@ -1,0 +1,11 @@
+type: article
+id: 51
+titre: Note avec une liste
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+Un appel[[Une note avec une liste :
+-* premier
+-* second]] dans le texte.

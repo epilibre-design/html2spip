@@ -1,0 +1,10 @@
+type: article
+id: 70
+titre: Multi
+id_rubrique: 1
+statut: publie
+lang: fr
+limite: oui
+date: 2026-01-01 00:00:00
+---
+<multi>[fr]Bonjour[en]Hello</multi> tout le monde.
