@@ -73,4 +73,16 @@ foreach (html2spip_test_sources() as $source) {
 include_spip('inc/rubriques');
 calculer_rubriques();
 propager_les_secteurs();
-echo 'Corpus chargé : ' . count(html2spip_test_sources()) . " objets\n";
+
+// Vérification : scripts/installer-spip-jetable.sh échoue sans la ligne « Corpus chargé » (une insertion qui
+// échoue peut arrêter ce script sans erreur visible)
+$absents = array();
+foreach (html2spip_test_sources() as $nom => $source) {
+	[$table, $cle] = HTML2SPIP_TEST_OBJETS_TABLES[$source['type']];
+	if (!sql_countsel($table, "$cle=" . intval($source['id']))) {
+		$absents[] = $nom;
+	}
+}
+echo $absents
+	? 'Corpus incomplet, objets absents : ' . join(', ', $absents) . "\n"
+	: 'Corpus chargé : ' . count(html2spip_test_sources()) . " objets\n";

@@ -42,8 +42,10 @@ mkdir -p "$spip_racine/plugins"
 spip plugins:activer html2spip -y
 spip plugins:maj:bdd
 
-# 3. Corpus
-spip php:eval "include '$racine/tests/spip/charger_corpus.php';"
+# 3. Corpus, vérifié par charger_corpus.php : sans sa ligne « Corpus chargé », le chargement a échoué ou s'est arrêté
+corpus=$(spip php:eval "include '$racine/tests/spip/charger_corpus.php';" 2>&1) || erreur "chargement du corpus en échec : $corpus"
+echo "$corpus"
+grep -q '^Corpus chargé : ' <<<"$corpus" || erreur "corpus incomplet, SPIP jetable inutilisable"
 
 # 4. Version installée, contrôlée par tests/integration/EnvironnementTest.php
 version_spip=$(spip php:eval 'echo $GLOBALS["spip_version_branche"];')
