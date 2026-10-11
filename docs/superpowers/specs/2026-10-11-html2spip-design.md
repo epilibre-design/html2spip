@@ -2,7 +2,7 @@
 
 Date : 2026-10-11
 Origine : convertisseur de wp2spip (`inc/wp2spip_html.php`, spec `2026-10-09-wp2spip-convertisseur-html-design.md` du dépôt wp2spip).
-Statut : design validé par le mainteneur le 2026-10-11, à planifier.
+Statut : design validé par le mainteneur le 2026-10-11, corrigé après revue le même jour (notes, `<multi>`, extraction). **Volet ouvert** : règles de typographie (§ 4.4, annexe A), à relever dans le code de SPIP 4.4 en première tâche de la réalisation et à faire valider avant d'écrire la passe Typographie.
 
 ## 1. Objectif
 
@@ -22,8 +22,8 @@ html2spip doit rendre `Voir [->123] pour plus d'infos.` : texte du lien égal au
 |---|---|
 | Forme | Bibliothèque PHP pure (Composer, namespace `Html2Spip\`, sans SPIP) **et** plugin SPIP `html2spip` dans le même dépôt, qui fournit un résolveur appuyé sur la base et les URL du site |
 | Entrées | Sortie de `propre()` (avec `#NOTES`) **et** page publique complète (extraction du contenu, squelette dist d'abord) |
-| Critère de réussite | Principal : rendu identique, `propre(html2spip(propre(T))) == propre(T)`, notes comprises. En plus : forme canonique documentée (§ 5), comparée à des sorties attendues |
-| `<multi>` | Rendu d'une seule langue : texte de cette langue. En option, plusieurs rendus (un par langue) alignés nœud par nœud : `<multi>[fr]…[en]…</multi>` reconstruit là où les textes diffèrent |
+| Critère de réussite | Principal : rendu identique, comparé sur le couple (rendu principal, rendu de `#NOTES`) (§ 6.4), et par langue pour `<multi>`. En plus : forme canonique documentée (§ 5), comparée à des sorties attendues |
+| `<multi>` | Rendu d'une seule langue : texte de cette langue. En option, plusieurs rendus (un par langue) alignés nœud par nœud : `<multi>` minimal reconstruit là où les textes diffèrent. La source d'origine n'est pas exigée : seul le rendu par langue doit être identique (§ 4.6) |
 | Modèles | Modèles du core SPIP 4.4 reconnus (`doc`, `img`, `emb` et ceux qu'ils appellent) ; registre extensible pour ceux des plugins ; modèle non reconnu gardé en HTML |
 | wp2spip | Le cœur générique est extrait de wp2spip. Ce qui est propre à WordPress (`autop`, marqueurs `wp2spipbloc<N>`, raccourcis `[caption]`…) reste dans wp2spip, par options. La bascule de wp2spip est un second sous-projet |
 | Architecture | Deux étapes : reconnaissance des structures SPIP sur l'arbre DOM, puis conversion générique (approche A). Écartées : un seul parcours enrichi (logiques mêlées, notes à déplacer), inversion des règles TextWheel par expressions régulières (défauts de sale) |
@@ -145,9 +145,29 @@ L'échappement de wp2spip est repris tel quel. Un texte qui ressemble à un racc
 
 Les N rendus sont analysés, puis alignés sur leur structure : même suite d'éléments, en comparant nom, classes et attributs autres que le texte. Là où l'alignement réussit, chaque nœud texte qui diffère d'une langue à l'autre devient `<multi>[fr]…[en]…</multi>`. Des paragraphes entiers qui diffèrent donnent un `<multi>` en bloc. Si les structures divergent (nombre de paragraphes différent, par exemple), l'ensemble du texte est mis dans un `<multi>` unique et un avertissement est émis.
 
+Le `<multi>` d'origine n'est **pas toujours récupérable** : `<multi>[fr]Bonjour[en]Bonjour</multi>` et `Bonjour` donnent les mêmes rendus, et des structures différentes selon la langue déplacent les limites du bloc. La forme canonique se déduit des seuls rendus :
+
+- texte identique dans toutes les langues : pas de `<multi>` ;
+- textes différents dans des nœuds alignés : un `<multi>` par nœud texte, le plus petit possible (au niveau du nœud texte, pas du mot) ;
+- paragraphes différents en nombre ou en structure : un `<multi>` en bloc couvrant la plus petite suite de paragraphes qui diffère ;
+- langues dans l'ordre des rendus passés, sans `[lang]` vide.
+
+Le test porte sur l'équivalence : pour chaque langue, le rendu de la sortie égale le rendu de la source (§ 6.4).
+
 ### 4.7 Extraction d'une page publique
 
-Pour le squelette dist, le contenu est lu dans les blocs `chapo`, `texte`, `ps` et `notes` de la page d'article. Les autres squelettes s'ajoutent par un registre de sélecteurs. Si aucun bloc n'est trouvé, un avertissement est émis et le `body` entier est converti.
+L'extraction rend des **champs séparés** (`chapo`, `texte`, `ps`), et non un texte unique : les frontières entre champs sont conservées.
+
+Pour le squelette dist (`squelettes-dist/article.html` de SPIP 4.4), un registre décrit chaque champ par un sélecteur et les éléments de présentation à retirer :
+
+- `div.chapo`, `div.texte` : contenu du `div` ;
+- `div.ps` : contenu du `div`, **sans le `<hr />` initial** ajouté par le squelette (ligne 37) ;
+- `div.notes` : contenu du `div`, **sans le `<hr />` initial** (ligne 47) ; ce bloc regroupe les notes des trois champs, et chaque note est rendue au champ qui contient son appel ;
+- le `<hr />` et le paragraphe `hyperlien` (« Voir en ligne », ligne 36) sont ignorés : ils viennent de champs propres à l'article (`url_site`, `nom_site`), pas d'un texte.
+
+Le squelette applique `image_reduire{672,*}` au chapo, au texte et au ps. Les `<img>` réduites (dimensions et `src` d'une image calculée dans `local/cache-vignettes/`) doivent être reconnues par la passe Modèles comme celles du rendu `propre()`. Les captures de page publique le vérifient.
+
+Les autres squelettes s'ajoutent par le même registre. Si aucun champ n'est trouvé, un avertissement est émis et le `body` entier est converti comme champ `texte`.
 
 ### 4.8 Limites
 
@@ -206,11 +226,11 @@ Les types d'URL couverts sont `page`, `html`, `propres` et `arbo`. Les captures 
 
 - **Unitaires** (sans SPIP) : une suite par passe, par l'écriture et par Multi, sur des extraits de captures, avec `ResolveurTableau`. On y ajoute les tests du convertisseur de wp2spip, repris pour l'étape 2.
 - **Intégration** (SPIP jetable), pour chaque article et chaque type d'URL :
-  - rendu identique : `propre(html2spip(capture)) == propre(source)`, notes comprises ;
+  - rendu identique, notes comprises : SPIP garde les notes dans un état global (`inc/notes`), et `#NOTES` les rend à part. Pour la source puis pour la sortie, l'état des notes est remis à zéro, `propre()` est appelé, puis le rendu des notes est lu. On compare le couple (rendu principal, rendu des notes) ; une conversion qui perd une note échoue donc ;
   - forme canonique : sortie égale à `tests/corpus/attendus/<objet>.spip` ;
   - captures régénérées égales aux captures versionnées ; un écart signale un changement de SPIP 4.4.x, à revoir avant de mettre à jour les captures ;
-  - `<multi>` : la fusion des rendus fr et en restitue les `<multi>` de la source ;
-  - page publique : l'extraction donne la même sortie que la capture `propre()`.
+  - `<multi>` : pour chaque langue, le couple (rendu principal, notes) de la sortie fusionnée égale celui de la source ; la sortie égale aussi la forme canonique attendue (§ 4.6), qui peut différer de la source ;
+  - page publique : pour chaque champ (`chapo`, `texte`, `ps`), l'extraction donne la même sortie que la capture `propre()` du champ ; aucun `----` venant des `<hr />` du squelette.
 - `composer test` lance les tests unitaires. `composer test-integration` installe le SPIP jetable si besoin, puis lance tout.
 
 ## 7. Sous-projets
@@ -220,4 +240,4 @@ Les types d'URL couverts sont `page`, `html`, `propres` et `arbo`. Les captures 
 
 ## Annexe A — Typographie de SPIP 4.4
 
-À relever dans `ecrire/typographie/*.php` au début de la réalisation : chaque transformation, la règle d'inversion retenue et le test qui la couvre.
+**Ouverte.** À relever dans `ecrire/typographie/*.php` en première tâche de la réalisation : chaque transformation, la règle d'inversion retenue et le test qui la couvre. Elle est soumise au mainteneur avant l'écriture de la passe Typographie ; le § 4.4 n'en donne que le principe et les règles certaines.
