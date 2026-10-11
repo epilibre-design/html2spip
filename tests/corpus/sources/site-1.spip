@@ -1,0 +1,7 @@
+type: site
+id: 1
+nom_site: SPIP
+url_site: https://www.spip.net
+id_rubrique: 1
+statut: publie
+---

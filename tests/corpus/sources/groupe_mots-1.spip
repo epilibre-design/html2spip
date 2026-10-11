@@ -1,0 +1,5 @@
+type: groupe_mots
+id: 1
+titre: Groupe du corpus
+tables_liees: articles
+---

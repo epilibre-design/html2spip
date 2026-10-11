@@ -1,0 +1,9 @@
+type: article
+id: 23
+titre: Typographie, cas particuliers
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+Des “guillemets anglais” dans un texte français, un tiret triple --- gardé, et [?SPIP] sans insécable.

@@ -1,0 +1,9 @@
+type: article
+id: 44
+titre: Lien vers un site
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+Un site [->site1].

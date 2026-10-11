@@ -1,0 +1,10 @@
+type: article
+id: 72
+titre: Paramètre de modèle perdu
+id_rubrique: 1
+statut: publie
+lang: fr
+limite: oui
+date: 2026-01-01 00:00:00
+---
+<doc1|left|alt=Texte de remplacement>

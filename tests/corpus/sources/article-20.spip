@@ -1,0 +1,15 @@
+type: article
+id: 20
+titre: Typographie française
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+C'est la typographie française : deux points, point-virgule ; exclamation ! question ? Et « guillemets ».
+
+Mme Dupont habite au n° 5, 10 % des cas, M. Martin aussi.
+
+Un tiret long — ici, un tiret virgule -, et 100~km sans coupure.
+
+Pas d'insécable dans 10:30, dans a::b ni dans (!).
