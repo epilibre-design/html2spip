@@ -27,7 +27,7 @@ html2spip, avec le résolveur du site, doit rendre `Voir [->123] pour plus d'inf
 |---|---|
 | Forme | Bibliothèque PHP pure (Composer, namespace `Html2Spip\`, sans SPIP) **et** plugin SPIP `html2spip` dans le même dépôt. Le plugin fournit un résolveur appuyé sur la base et les URL du site, ainsi qu'une fonction `html2spip()` qui remplace `sale()` |
 | Entrée | Un fragment HTML : sortie de `propre()`, contenu d'un éditeur, HTML quelconque. Pas d'extraction de page publique ni de reconstitution des champs d'un objet (chapo, texte, ps) : ce serait un autre projet |
-| Critère de réussite | Pour les cas gérés : rendu identique, `propre(html2spip(propre(T))) == propre(T)`, notes comprises (§ 6.4). Sortie égale à une forme canonique attendue (§ 5). Pour les cas perdus (§ 4.8) : sortie attendue documentée, sans exigence de rendu identique |
+| Critère de réussite | Pour les cas gérés : rendu équivalent, `propre(html2spip(propre(T)))` ≡ `propre(T)`, notes comprises, l'équivalence étant comparée sur l'arbre HTML et non sur la chaîne (§ 6.4). Sortie égale à une forme canonique attendue (§ 5). Pour les cas perdus (§ 4.8) : sortie attendue documentée, sans exigence de rendu équivalent |
 | `<multi>` | Non reconstruit : SPIP n'en rend qu'une langue, et html2spip convertit ce texte |
 | Notes | Recousues en `[[…]]` si l'appel et la note sont dans le fragment reçu. Sinon : appel retiré et avertissement émis, note orpheline gardée en paragraphe (§ 4.2) |
 | Modèles | Interface `ReconnaisseurModele` (§ 4.4). Reconnaisseurs fournis : modèles du core SPIP 4.4 (`doc`, `img`, `emb` et ceux qu'ils appellent) et, en option, `<album>` du plugin Albums. Ils dépendent du HTML produit, pas du code des plugins. Un modèle non reconnu est gardé en HTML. Un paquet séparé par plugin (`html2spip-albums`…) ne se justifierait que si ces reconnaisseurs alourdissaient le cœur |
@@ -256,8 +256,8 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
   - `<albumN>`, par objet (`objet`, `id_objet`), par liste de documents (`id_document`) ;
   - avec chaque disposition (`inline` par défaut, `line`, `mosaic`, `masonry`, `list`, `browse`, `simple`), alignement, `position_legende`, `classe`, `modele_doc`, `masquer_legende` (dont un album qui n'a que des crédits), titre personnalisé ;
   - défaut du site changé par `albums/disposition`, et par une disposition ajoutée en tête par le pipeline `albums_decrire_dispositions` (petit plugin de test) ;
-  - albums dont un paramètre non déductible change le rendu (`largeur`, `recadrer_ratio`, `par`, `pagination`, `media`) : marqués `limite`, donc exclus du test de rendu identique ;
-- typographie, en français et en anglais : chaque règle de l'annexe A ; `~` voulus (entre deux mots, devant un signe où SPIP n'en met pas) ; `10:30`, `::`, `[?…]`, `(!)` sans insécable ; abréviations ; `--` et `---` ; `« »` et `“ ”` ;
+  - albums dont un paramètre non déductible change le rendu (`largeur`, `recadrer_ratio`, `par`, `pagination`, `media`) : marqués `limite`, donc exclus du test de rendu équivalent ;
+- typographie, en français et en anglais : chaque règle de l'annexe A ; `C’est` tapé avec `’` dans la source (rendu en caractère par SPIP, sortie `C'est` rendue en `&#8217;`) ; `~` voulus (entre deux mots, devant un signe où SPIP n'en met pas) ; `10:30`, `::`, `[?…]`, `(!)` sans insécable ; abréviations ; `--` et `---` ; `« »` et `“ ”` ;
 - textes qui ressemblent à des raccourcis ;
 - `_ ` et retours simples ;
 - cas perdus (`limite`) : `<multi>`, `<html>`, `<echappe>`, modèle de plugin non reconnu.
@@ -271,10 +271,12 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 - **Unitaires** (sans SPIP) : une suite par passe, par reconnaisseur de modèle et pour l'écriture, sur des extraits de captures, avec `ResolveurTableau`. Les tests du convertisseur de wp2spip y sont ajoutés, repris pour l'étape 2.
 - **Intégration** (SPIP jetable), pour chaque objet et chaque type d'URL :
   - **forme canonique** : la sortie égale `tests/corpus/attendus/<objet>.spip`, pour tous les objets, cas perdus compris ;
-  - **rendu identique**, sauf pour les objets `limite` :
+  - **rendu équivalent**, sauf pour les objets `limite` :
     - SPIP garde les notes dans un état global (`inc/notes`) et `#NOTES` les rend à part ;
     - pour la source, puis pour la sortie : l'état des notes est remis à zéro, `propre()` est appelé, puis le rendu des notes est lu ;
     - on compare le couple (rendu principal, rendu des notes), si bien qu'une conversion qui perd une note échoue ;
+    - la comparaison porte sur l'**arbre HTML normalisé**, pas sur la chaîne. Les deux fragments sont analysés par le même analyseur HTML5 (`Arbre/`), puis sérialisés de façon canonique : entités décodées en caractères UTF-8 (`&#8217;` et `’`, `&nbsp;` et U+00A0 deviennent identiques), attributs triés, blancs entre éléments de bloc retirés. Les blancs à l'intérieur du texte sont comparés tels quels. Exemple vérifié sur SPIP 4.4 : `propre("C’est")` donne `<p>C’est</p>` et `propre("C'est")` donne `<p>C&#8217;est</p>`, deux rendus équivalents ;
+    - en cas d'écart, le test affiche le diff des deux sérialisations canoniques ;
   - **captures** : les captures régénérées égalent les captures versionnées. Un écart signale un changement de SPIP 4.4.x, à revoir avant de mettre à jour les captures.
 - `composer test` lance les tests unitaires. `composer test-integration` installe le SPIP jetable si besoin, puis lance tout.
 
@@ -322,6 +324,6 @@ En anglais, une insécable devant `:` `;` `!` `?` n'est jamais ajoutée par SPIP
 
 ### Limites
 
-- Une insécable voulue par l'auteur à un endroit où SPIP en ajoute une (`a~:` en français) devient une espace normale. Le rendu est identique.
-- Les espaces normales qui entouraient une insécable dans la source sont perdues (fusion). Le rendu est identique.
+- Une insécable voulue par l'auteur à un endroit où SPIP en ajoute une (`a~:` en français) devient une espace normale. Le rendu est équivalent.
+- Les espaces normales qui entouraient une insécable dans la source sont perdues (fusion). Le rendu est équivalent.
 - Le pipeline `pre_typo`/`post_typo` d'un plugin peut ajouter d'autres transformations, qui ne sont pas inversées.
