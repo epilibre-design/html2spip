@@ -146,9 +146,9 @@ Cas incomplets :
 
 ### 4.4 Modèles
 
-La passe Modèles ne reconnaît que les modèles dist `doc`, `img` et `emb`. Dans SPIP 4.4, `<docN>`, `<imgN>` et `<embN>` donnent le **même** HTML (annexe B) : `div.spip_document_N.spip_document`, alignement dans `spip_documents_<align>`. La forme canonique est donc `<docN|align>`, ou `<docN>` si l'alignement est celui que SPIP donne sans paramètre (`center`, relevé par la capture de `<docN>`). Les autres paramètres (`largeur`, `hauteur`…) ne sont pas recherchés.
+La passe Modèles reconnaît une **forme HTML** : celle que les modèles dist `doc`, `img` et `emb` de SPIP 4.4 produisent. Elle ne prouve pas l'origine du HTML : un modèle de squelette ou de plugin qui produit la même structure est converti de la même façon, en `<docN|align>`. Dans SPIP 4.4, `<docN>`, `<imgN>` et `<embN>` donnent le **même** HTML (annexe B) : `div.spip_document_N.spip_document`, alignement dans `spip_documents_<align>`. La forme canonique est donc `<docN|align>`, ou `<docN>` si l'alignement est celui que SPIP donne sans paramètre (`center`, relevé par la capture de `<docN>`). Les autres paramètres (`largeur`, `hauteur`…) ne sont pas recherchés.
 
-Tout autre HTML de modèle (modèle de plugin ou de squelette) n'est pas identifié : il passe à la conversion générique, comme du HTML quelconque.
+Tout HTML qui n'a pas cette forme n'est pas identifié comme modèle : il passe à la conversion générique, comme du HTML quelconque.
 
 ### 4.5 Typographie
 
@@ -175,13 +175,14 @@ L'échappement de wp2spip est repris tel quel. Un texte qui ressemble à un racc
 
 ### 4.8 Limites (cas perdus)
 
-Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
+Ces cas sont documentés. Ceux qu'un SPIP 4.4 sans plugin produit figurent dans le corpus avec leur sortie attendue ; les modèles hors dist n'y figurent pas, faute de plugin de test :
 
 - `<multi>` : seul le texte de la langue rendue est gardé ;
 - notes dont l'appel ou le contenu n'est pas dans le fragment (§ 4.2) ;
 - contenu de `<html>…</html>` : converti comme du HTML quelconque (`<b>` y devient `{{…}}`) ;
 - forme exacte parmi des variantes équivalentes : `[->art123]` ou `[->123]`, `a:` ou `a :`, `--` ou `—` ;
-- modèles autres que `doc`, `img`, `emb` : convertis comme du HTML quelconque ;
+- HTML d'un modèle qui n'a pas la forme de `doc`, `img`, `emb` (modèle de plugin ou de squelette) : converti comme du HTML quelconque, **hors corpus** ;
+- HTML d'un autre modèle qui imite cette forme : converti en `<docN|align>` à tort, **hors corpus** ;
 - paramètres des modèles `doc`, `img`, `emb` autres que l'alignement (§ 4.4).
 
 ## 5. Forme canonique
