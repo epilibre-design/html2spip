@@ -2,8 +2,7 @@
 /**
  * Écriture des raccourcis SPIP : parcours générique de l'arbre HTML5
  *
- * Reprise du convertisseur de wp2spip (inc/wp2spip_html.php) : le HTML est parcouru nœud par nœud, aucune
- * expression régulière ne lui est appliquée. Les passes de reconnaissance (src/Reconnaissance/) ont déjà remplacé
+ * Le HTML est parcouru nœud par nœud, aucune expression régulière ne lui est appliquée. Les passes de reconnaissance (src/Reconnaissance/) ont déjà remplacé
  * les structures produites par SPIP par des nœuds privés (Html2Spip\Arbre\Noeuds), lus ici.
  */
 
@@ -38,16 +37,12 @@ final class Ecrivain
 	private const VIDES = array('area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr');
 
 	/**
-	 * HTML de Wordpress en raccourcis SPIP
+	 * HTML en raccourcis SPIP
 	 *
 	 * @param string $html
 	 * @param array $options
-	 *     - autop : true pour un texte auquel Wordpress applique wpautop() (ligne vide = paragraphe, retour simple =
+	 *     - autop : true pour un texte dont les retours de ligne comptent (ligne vide = paragraphe, retour simple =
 	 *       saut de ligne), false pour du HTML (blancs réduits comme par un navigateur) ; défaut true
-	 *     - marqueurs : motif preg_split, avec capture, des marqueurs à garder seuls sur leur paragraphe, ou null
-	 *     - raccourcis_gardes : motif preg_split, avec capture, des raccourcis à ne pas échapper, ou null
-	 *     - raccourcis_blocs : array('debut' => motif, 'fin' => motif) des raccourcis de bloc qui ne sont pas des
-	 *       sauts de ligne quand ils sont seuls sur leur ligne, ou null
 	 * @return string
 	 */
 	public static function spip($html, $options = array()) {
@@ -68,9 +63,6 @@ final class Ecrivain
 	public static function convertir_body($body, $options) {
 		$contexte = array(
 			'autop' => $options['autop'] ?? true,
-			'marqueurs' => $options['marqueurs'] ?? null,
-			'raccourcis_gardes' => $options['raccourcis_gardes'] ?? null,
-			'raccourcis_blocs' => $options['raccourcis_blocs'] ?? null,
 			'pre' => false,
 			'gras' => false,
 			'italique' => false,
@@ -256,8 +248,7 @@ final class Ecrivain
 	}
 
 	/**
-	 * Texte d'un nœud : blancs selon le contexte, caractères spéciaux du HTML réécrits en entités, marqueurs de blocs
-	 * protégés de wp2spip isolés sur leur paragraphe
+	 * Texte d'un nœud : blancs selon le contexte, caractères spéciaux du HTML réécrits en entités
 	 *
 	 * @param string $texte
 	 * @param array $sortie
@@ -265,36 +256,23 @@ final class Ecrivain
 	 */
 	private static function texte($texte, &$sortie, $contexte) {
 		if ($contexte['pre']) {
-			self::ecrire($sortie, self::echapper_debut(self::echapper_texte($texte, $contexte)));
+			self::ecrire($sortie, self::echapper_debut(self::echapper_texte($texte)));
 			return;
 		}
-		$morceaux = ($contexte['marqueurs'] === null) ? array($texte) : preg_split($contexte['marqueurs'], $texte, -1, PREG_SPLIT_DELIM_CAPTURE);
-		foreach ($morceaux as $i => $morceau) {
-			if ($i % 2) {
-				self::bloc($sortie, $morceau);
-				continue;
+		if (!$contexte['autop']) {
+			self::ecrire($sortie, self::echapper_texte(preg_replace('/[ \t\n\f]+/', ' ', $texte)));
+			return;
+		}
+		// Retours de ligne qui comptent : ligne vide = paragraphe, retour simple = saut de ligne
+		foreach (preg_split('/\n[ \t\f]*\n\s*/', $texte) as $j => $paragraphe) {
+			if ($j) {
+				self::fin_paragraphe($sortie);
 			}
-			if (!$contexte['autop']) {
-				self::ecrire($sortie, self::echapper_texte(preg_replace('/[ \t\n\f]+/', ' ', $morceau), $contexte));
-				continue;
-			}
-			// wpautop() : ligne vide = paragraphe, retour simple = saut de ligne
-			foreach (preg_split('/\n[ \t\f]*\n\s*/', $morceau) as $j => $paragraphe) {
-				if ($j) {
-					self::fin_paragraphe($sortie);
+			foreach (explode("\n", $paragraphe) as $k => $ligne) {
+				if ($k) {
+					$sortie['sauts']++;
 				}
-				$lignes = explode("\n", $paragraphe);
-				foreach ($lignes as $k => $ligne) {
-					$ligne = self::echapper_texte(preg_replace('/[ \t\f]+/', ' ', $ligne), $contexte);
-					if ($k and (self::raccourci_bloc($ligne, true, $contexte) or self::raccourci_bloc($lignes[$k - 1], false, $contexte))) {
-						// Raccourci Wordpress de bloc (légende, lecteur…) sur sa ligne : pas un saut de ligne, il deviendra un document
-						$ligne = "\n" . $ligne;
-					}
-					elseif ($k) {
-						$sortie['sauts']++;
-					}
-					self::ecrire($sortie, $ligne);
-				}
+				self::ecrire($sortie, self::echapper_texte(preg_replace('/[ \t\f]+/', ' ', $ligne)));
 			}
 		}
 	}
@@ -642,37 +620,16 @@ final class Ecrivain
 	}
 
 	/**
-	 * Ligne qui commence (ou finit) par un raccourci de bloc de l'option raccourcis_blocs (légende, lecteur… de
-	 * Wordpress pour wp2spip)
-	 *
-	 * @param string $ligne
-	 * @param bool $debut true : commence par le raccourci ouvrant ; false : finit par le raccourci fermant
-	 * @param array $contexte
-	 * @return bool
-	 */
-	private static function raccourci_bloc($ligne, $debut, $contexte) {
-		$motifs = $contexte['raccourcis_blocs'];
-		return $motifs !== null && (bool) preg_match($debut ? $motifs['debut'] : $motifs['fin'], $ligne);
-	}
-
-	/**
-	 * Texte échappé pour SPIP : caractères du HTML et des raccourcis SPIP en entités, sauf les raccourcis de l'option
-	 * raccourcis_gardes (le tiret et le souligné de début de ligne : echapper_debut())
+	 * Texte échappé pour SPIP : caractères du HTML et des raccourcis SPIP en entités (le tiret et le souligné de début
+	 * de ligne : echapper_debut())
 	 *
 	 * Un texte affiché tel quel ({{a}}, [lien->x], | a |…) est ainsi affiché tel quel par SPIP.
 	 *
 	 * @param string $texte
-	 * @param array $contexte
 	 * @return string
 	 */
-	private static function echapper_texte($texte, $contexte) {
-		$morceaux = ($contexte['raccourcis_gardes'] === null) ? array($texte) : preg_split($contexte['raccourcis_gardes'], $texte, -1, PREG_SPLIT_DELIM_CAPTURE);
-		foreach ($morceaux as $i => $morceau) {
-			if (!($i % 2)) {
-				$morceaux[$i] = strtr(self::echapper($morceau), array('{' => '&#123;', '}' => '&#125;', '[' => '&#91;', ']' => '&#93;', '|' => '&#124;', '~' => '&#126;'));
-			}
-		}
-		return join('', $morceaux);
+	private static function echapper_texte($texte) {
+		return strtr(self::echapper($texte), array('{' => '&#123;', '}' => '&#125;', '[' => '&#91;', ']' => '&#93;', '|' => '&#124;', '~' => '&#126;'));
 	}
 
 	/**
