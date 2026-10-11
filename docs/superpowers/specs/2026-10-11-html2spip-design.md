@@ -1,12 +1,12 @@
 # html2spip — un sale() amélioré : HTML en raccourcis SPIP, y compris le HTML produit par SPIP
 
 Date : 2026-10-11
-Origine : convertisseur de wp2spip (`inc/wp2spip_html.php`, spec `2026-10-09-wp2spip-convertisseur-html-design.md` du dépôt wp2spip) et plugin [sale](https://git.spip.net/spip-contrib-extensions/sale).
+Origine : plugin [sale](https://git.spip.net/spip-contrib-extensions/sale).
 Statut : design validé par le mainteneur le 2026-10-11 ; formes HTML relevées sur SPIP 4.4.28 avant le plan (annexe B) ; puis **simplifié** le même jour à sa demande : pas d'extraction de page publique, pas de reconstruction de `<multi>`. Règles de typographie relevées dans le code de SPIP 4.4.21 le même jour (§ 4.5, annexe A) ; plus aucun volet ouvert. **Réduit au minimum** le même jour à sa demande : seuls les modèles dist (`doc`, `img`, `emb`) sont reconnus, sans mécanisme d'extension ni reconnaissance de modèles de plugins (Albums retiré), car les modèles personnalisés sont trop nombreux.
 
 ## 1. Objectif
 
-html2spip est un **`sale()` amélioré**. Il convertit un fragment HTML en texte SPIP (raccourcis typographiques) en analysant un arbre HTML5, et non par une suite d'expressions régulières. Il reprend le convertisseur générique de wp2spip. Il reconnaît aussi ce que SPIP produit, comme sale le fait déjà en partie (modèles de documents, `cadre`, `code`, `poesie`, liens `spip.php?id_article=N`, `&nbsp;:`). Il ajoute les liens internes résolus, les notes, les ancres et l'inversion de la typographie.
+html2spip est un **`sale()` amélioré**. Il convertit un fragment HTML en texte SPIP (raccourcis typographiques) en analysant un arbre HTML5, et non par une suite d'expressions régulières. Il reconnaît aussi ce que SPIP produit, comme sale le fait déjà en partie (modèles de documents, `cadre`, `code`, `poesie`, liens `spip.php?id_article=N`, `&nbsp;:`). Il ajoute les liens internes résolus, les notes, les ancres et l'inversion de la typographie.
 
 Il reste simple : il reçoit un fragment HTML et rend un texte. Ce qui ne peut pas être retrouvé (§ 4.8) est une limite documentée, pas un problème à résoudre.
 
@@ -31,9 +31,8 @@ html2spip, avec le résolveur du site, doit rendre `Voir [->123] pour plus d'inf
 | `<multi>` | Non reconstruit : SPIP n'en rend qu'une langue, et html2spip convertit ce texte |
 | Notes | Recousues en `[[…]]` si l'appel et la note sont dans le fragment reçu. Sinon : appel retiré et avertissement émis, note orpheline gardée en paragraphe (§ 4.2) |
 | Modèles | Seuls les modèles dist de SPIP 4.4 sont reconnus : `doc`, `img`, `emb` (§ 4.4). Aucune interface ni registre de reconnaisseurs, aucun modèle de plugin : les modèles personnalisés sont trop nombreux. Tout autre modèle passe à la conversion générique, comme du HTML quelconque |
-| wp2spip | Le cœur générique est extrait de wp2spip. Ce qui est propre à WordPress (`autop`, marqueurs `wp2spipbloc<N>`, raccourcis `[caption]`…) reste dans wp2spip, par options. La bascule de wp2spip est un second sous-projet |
 | Architecture | Deux étapes : reconnaissance des structures SPIP sur l'arbre DOM, puis conversion générique. Écartées : un seul parcours enrichi (logiques mêlées), expressions régulières sur le HTML (défauts de sale : retours arrière, imbrications mal appariées, texte perdu) |
-| PHP | 8.1 minimum, comme wp2spip : `Dom\HTMLDocument` à partir de 8.4, Masterminds HTML5-PHP avant |
+| PHP | 8.1 minimum : `Dom\HTMLDocument` à partir de 8.4, Masterminds HTML5-PHP avant |
 | Formes HTML | Jamais écrites de mémoire : chaque règle du § 4 est validée par une capture du SPIP 4.4 jetable |
 
 ## 3. Architecture
@@ -46,15 +45,15 @@ src/                      Cœur PHP pur, namespace Html2Spip\
   Arbre/                  Analyse HTML5 (Dom\HTMLDocument ou Masterminds), sérialisation
   Reconnaissance/         Étape 1 : interface Passe::appliquer(Element $body, Contexte), une classe par passe
     Code, Notes, Modeles, Liens, Tableaux, Typographie
-  Ecriture/               Étape 2 : parcours générique extrait de wp2spip
+  Ecriture/               Étape 2 : parcours générique de l'arbre
   Resolveur.php           Interface
   ResolveurNul.php        Aucun lien interne retrouvé
   ResolveurTableau.php    Données passées en tableau (tests, usage hors SPIP)
   Spip/                   ResolveurSpip, OptionsSpip : utilisables seulement dans SPIP
 paquet.xml, html2spip_options.php, inc/html2spip.php
-                          Plugin SPIP à la racine du dépôt, comme wp2spip : autoload de src/ et de lib/, fonction html2spip()
+                          Plugin SPIP à la racine du dépôt : autoload de src/ et de lib/, fonction html2spip()
 spip-cli/                 Commande html2spip:convertir
-lib/masterminds-html5/    Copie de Masterminds pour PHP 8.1 à 8.3 hors Composer (comme wp2spip)
+lib/masterminds-html5/    Copie de Masterminds pour PHP 8.1 à 8.3 hors Composer
 tests/unit/               Sans SPIP
 tests/integration/        Avec le SPIP jetable
 tests/corpus/             Sources, captures, sorties attendues (§ 6)
@@ -90,8 +89,8 @@ interface Resolveur {
 
 - `resolveur` : `ResolveurNul` par défaut.
 - `langue` : choisit la table de typographie à inverser (`fr` par défaut).
-- `passes` : passes actives. Une liste vide donne la conversion générique seule (usage de wp2spip).
-- `autop`, `marqueurs` : options de l'écriture reprises de wp2spip, pour son seul usage.
+- `passes` : passes actives. Une liste vide donne la conversion générique seule.
+- `ecriture` : options de l'écriture générique. `autop` traite un texte dont les retours de ligne comptent (ligne vide : paragraphe ; retour simple : saut de ligne) ; faux par défaut, le HTML étant lu comme par un navigateur.
 
 ### 3.4 Erreurs
 
@@ -134,7 +133,7 @@ Cas incomplets :
 | `br.autobr` | retour simple |
 | autre `br` (dont `br.manualbr`) | `_ ` |
 | `hr.spip` | `----` |
-| `ul.spip`, `ol.spip` | `-*`, `-#`, avec profondeur et listes mixtes (règles de wp2spip) |
+| `ul.spip`, `ol.spip` | `-*`, `-#`, avec profondeur et listes mixtes |
 | `table.spip` | `\|\|légende\|résumé\|\|` (résumé lu dans `caption small.summary`) puis `\| … \|` ; en-têtes `{{…}}` ; `colspan` en `<` ; attributs `id`, `headers`, classes de rangées ignorés |
 | `blockquote.spip` | `<quote>…</quote>` |
 | `blockquote.spip_poesie` (une ligne par `div`) | `<poesie>…</poesie>` |
@@ -142,7 +141,7 @@ Cas incomplets :
 | `code.spip_code` en ligne | `<code>…</code>`, texte brut |
 | HTML d'un modèle reconnu (§ 4.4) | `<docN\|left>` |
 | paragraphes `p` | séparés par une ligne vide |
-| autres éléments | règles du convertisseur de wp2spip |
+| autres éléments | conversion générique : `b`/`strong`, `i`/`em`, titres, listes, tableaux, liens ; ce qui n'a pas de raccourci reste en HTML |
 
 ### 4.4 Modèles
 
@@ -166,7 +165,7 @@ Principe : un caractère introduit par la typographie n'est retiré que si elle 
 
 ### 4.6 Échappement
 
-L'échappement de wp2spip est repris tel quel. Un texte qui ressemble à un raccourci SPIP est écrit en entités numériques : `{` `}` `[` `]` `|` `~`, ainsi qu'un `-` ou un `_` en début de ligne. `&`, `<` et `>` sont écrits en entités. Le rendu reste ainsi le même.
+Un texte qui ressemble à un raccourci SPIP est écrit en entités numériques : `{` `}` `[` `]` `|` `~`, ainsi qu'un `-` ou un `_` en début de ligne. `&`, `<` et `>` sont écrits en entités. Le rendu reste ainsi le même.
 
 ### 4.7 Ce que html2spip ne fait pas
 
@@ -196,7 +195,7 @@ Ces cas sont documentés. Ceux qu'un SPIP 4.4 sans plugin produit figurent dans 
 
 ### 6.1 SPIP jetable
 
-`scripts/installer-spip-jetable.sh` est idempotent, sur le modèle de `scripts/install-spip-test.sh` de wp2spip :
+`scripts/installer-spip-jetable.sh` est idempotent :
 
 1. SPIP-Cli autonome dans `vendor/`, puis `core:telecharger spip -R 4.4`, qui donne la dernière 4.4.x. La version est notée dans `tests/spip-jetable/VERSION` et affichée par les tests ;
 2. installation en SQLite dans `tests/spip-jetable/` (ignoré par git), administrateur avec un mot de passe aléatoire ;
@@ -234,7 +233,7 @@ Ces cas sont documentés. Ceux qu'un SPIP 4.4 sans plugin produit figurent dans 
 
 ### 6.4 Suites
 
-- **Unitaires** (sans SPIP) : une suite par passe et pour l'écriture, sur des extraits de captures, avec `ResolveurTableau`. Les tests du convertisseur de wp2spip y sont ajoutés, repris pour l'étape 2.
+- **Unitaires** (sans SPIP) : une suite par passe et pour l'écriture, sur des extraits de captures, avec `ResolveurTableau`.
 - **Intégration** (SPIP jetable), pour chaque objet et chaque type d'URL :
   - **forme canonique** : la sortie égale `tests/corpus/attendus/<objet>.spip`, pour tous les objets, cas perdus compris ;
   - **rendu équivalent**, sauf pour les objets `limite` :
@@ -245,14 +244,6 @@ Ces cas sont documentés. Ceux qu'un SPIP 4.4 sans plugin produit figurent dans 
     - en cas d'écart, le test affiche le diff des deux sérialisations canoniques ;
   - **captures** : les captures régénérées égalent les captures versionnées. Un écart signale un changement de SPIP 4.4.x, à revoir avant de mettre à jour les captures.
 - `composer test` lance les tests unitaires. `composer test-integration` installe le SPIP jetable si besoin, puis lance tout.
-
-## 7. Sous-projets
-
-1. **html2spip** (ce document) : cœur, plugin, SPIP jetable, corpus, tests.
-2. **Bascule de wp2spip** :
-   - wp2spip dépend de html2spip par Composer, avec les passes de reconnaissance SPIP désactivées et les options `autop` et marqueurs ;
-   - ses tests unitaires, d'intégration et `composer tests-import` servent de non-régression ;
-   - `inc/wp2spip_html.php` est retiré.
 
 ## Annexe A — Typographie de SPIP 4.4
 
@@ -297,7 +288,7 @@ En anglais, une insécable devant `:` `;` `!` `?` n'est jamais ajoutée par SPIP
 
 ## Annexe B — Formes HTML relevées sur SPIP 4.4.28
 
-Relevées le 2026-10-11 par `propre()` et `calculer_notes()` sur le SPIP de test de wp2spip (URL `page`, `autobr` actif). Les captures du corpus les remplacent dès qu'elles existent.
+Relevées le 2026-10-11 par `propre()` et `calculer_notes()` sur un SPIP 4.4.28 de test (URL `page`, `autobr` actif). Les captures du corpus les remplacent dès qu'elles existent.
 
 | Source | HTML |
 |---|---|
