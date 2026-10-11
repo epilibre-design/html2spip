@@ -209,7 +209,7 @@ Ces cas sont documentés. Ceux qu'un SPIP 4.4 sans plugin produit figurent dans 
 
 `tests/corpus/sources/` contient un fichier par objet : un en-tête (type, id, titre, rubrique, langue, statut, `limite` si l'objet illustre un cas perdu) suivi du texte SPIP. On y trouve aussi des documents versionnés (petites images, un PDF). Cas couverts :
 
-- liens vers article, rubrique, brève, auteur, mot, site et document :
+- liens vers article, rubrique, auteur, mot, site et document (pas de brève : le plugin Brèves ne fait pas partie des plugins-dist de SPIP 4.4 ; `spip.php?breveN` et `breveN.html` sont couverts par les tests unitaires d’objet absent) :
   - avec et sans texte, texte égal ou non au titre ;
   - titres numérotés (`10. Titre`), titres contenant `'` ou `:` ;
   - bulle, langue, `#ancre` ;

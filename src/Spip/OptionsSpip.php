@@ -13,6 +13,6 @@ final class OptionsSpip
 	 * @param string $langue langue du texte (typographie à inverser)
 	 */
 	public static function options(string $langue = 'fr'): Options {
-		return new Options(langue: $langue);
+		return new Options(resolveur: new ResolveurSpip(), langue: $langue);
 	}
 }

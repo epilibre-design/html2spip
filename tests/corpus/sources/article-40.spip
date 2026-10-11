@@ -1,0 +1,9 @@
+type: article
+id: 40
+titre: L'article cible : premier
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+[suite<-]Cible des liens.

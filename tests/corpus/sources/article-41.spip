@@ -1,0 +1,9 @@
+type: article
+id: 41
+titre: 10. Article numéroté
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+Titre numéroté.

@@ -1,0 +1,17 @@
+type: article
+id: 43
+titre: Liens
+id_rubrique: 1
+statut: publie
+lang: fr
+date: 2026-01-01 00:00:00
+---
+Vers un article [->40], avec un autre texte [le texte->40], une ancre [->40#suite] et une bulle [avec bulle|Une bulle->40].
+
+Vers un titre numéroté [->41], un article non publié [->42], une rubrique [->rub1], un auteur [->aut1], un mot [->mot1] et un document [->doc1].
+
+Liens cassés [->999] et [x->rub999].
+
+Externes [SPIP->https://www.spip.net], https://www.spip.net/fr nue, courriel [->contact@example.test] et [écrire->mailto:contact@example.test].
+
+Glossaire [?SPIP].
