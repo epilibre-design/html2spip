@@ -153,25 +153,28 @@ interface ReconnaisseurModele {
 }
 ```
 
-La passe Modèles parcourt l'arbre et propose chaque élément aux reconnaisseurs actifs. Le premier qui rend un raccourci remplace l'élément par un nœud raccourci. Un reconnaisseur signale par `Contexte::avertir()` les paramètres qu'il n'a pas pu retrouver dans le HTML.
+La passe Modèles parcourt l'arbre et propose chaque élément aux reconnaisseurs actifs. Le premier qui rend un raccourci remplace l'élément par un nœud raccourci. Un reconnaisseur ne peut pas savoir si un paramètre sans trace dans le HTML figurait dans le raccourci d'origine. Il signale donc par `Contexte::avertir()` que le modèle a des paramètres **non déductibles**, et les nomme, sans affirmer qu'ils ont été perdus.
 
 **Core** (`doc`, `img`, `emb`) : classes `spip_document_N`, `spip_documents_<align>` et structure des modèles de SPIP 4.4, relevées sur les captures.
 
-**Albums** (plugin Albums 4.4.x, `modeles/album.html` et `modeles/album_fonctions.php`). Le modèle rend un `<figure class="album album_model …" id="modele_album_<id>">` :
+**Albums** (plugin Albums **4.4.1** : `modeles/album.html`, `modeles/album_fonctions.php`, `albums_fonctions.php`). Le modèle rend un `<figure class="album album_model …" id="modele_album_<id>">`. Les règles se fondent sur le code, pas sur le commentaire en tête de `album.html`, qui n'est plus à jour : il cite `ligne` et `mosaique`.
+
+Les valeurs par défaut du site comptent : la disposition (paramètre, puis constante `_ALBUMS_DISPOSITION`, puis configuration `albums/disposition`, puis `inline`) et la position de la légende (paramètre, puis `_ALBUMS_POSITION_LEGENDE`). Le reconnaisseur les reçoit en option. Le plugin SPIP les lit sur le site, et en leur absence les valeurs d'Albums sont prises.
 
 | Dans le HTML | Paramètre retrouvé |
 |---|---|
 | `id="modele_album_12"` (`calculer_id_modele_album()`) | `<album12>` (`id_album`) |
 | `id="modele_album_article_5"` | `<album\|objet=article\|id_objet=5>` |
 | `id="modele_album_documents_<md5>"` | `id_document=3,4,7`, lu dans les classes `spip_document_N` des `li.album__item` (`#ALBUM_DOC`), dans l'ordre affiché |
-| classe `album_<disposition>` | `disposition=ligne`, `mosaique`… ; absente pour `inline` (défaut) |
+| classe `album_<disposition>`, **toujours présente** : `#ALBUM_PARAMS` calcule toujours une disposition | valeurs de `albums_decrire_dispositions()` : `inline`, `masonry`, `mosaic`, `line`, `list`, `browse`, `simple`, et celles qu'ajoute le pipeline `albums_decrire_dispositions`. `disposition=…` est écrit sauf si la valeur est la disposition par défaut du site |
 | classe `left`, `right` ou `center` | alignement `\|left`… |
-| classe `album_caption-<position>` | `position_legende=top` si différente du défaut |
-| autres classes du `figure` (hors `album*`, `vignettes`) | `classe=…` |
+| classe `album_caption-<position>`, écrite seulement si `position_legende` ou `_ALBUMS_POSITION_LEGENDE` est défini | `position_legende=…` sauf si la valeur est celle de `_ALBUMS_POSITION_LEGENDE` sur le site |
+| classe `album__doc_<modele_doc>` des documents (`#ALBUM_DOC`) | `modele_doc=…` si elle diffère du modèle de la disposition (`doc` ou `file_album`) |
+| autres classes du `figure` : hors `album`, `album_model`, `album_<disposition>`, `album_images`/`album_mixed` (calculées), `album_caption-*`, alignement, `vignettes` | `classe=…` |
 | `figcaption` absent alors que l'album a un titre ou un descriptif | `masquer_legende=oui` |
 | `.album__heading`, `.album__text`, `.album__credits` | rien s'ils égalent `champAffiche('album', id, …)` ; sinon `titre=…`, `descriptif=…`, `credits=…` |
 
-Paramètres **perdus**, avec avertissement : `largeur`, `hauteur`, `recadrer_ratio`, `recadrer_sens`, `par`, `sens`, `pagination`, `pagination_type`, `media`, `extension`, `mode`, `vu`, `modele_doc`. Leurs effets (images retaillées, ordre, filtrage) ne se lisent pas de façon fiable dans le HTML. Les valeurs par défaut lues par le modèle dans des constantes (`_ALBUMS_POSITION_LEGENDE`…) sont prises à leur valeur par défaut, ou passées en option au reconnaisseur.
+Paramètres **non déductibles** : `largeur`, `hauteur`, `recadrer_ratio`, `recadrer_sens`, `par`, `sens`, `pagination`, `pagination_type`, `media`, `extension`, `mode`, `vu`. Leurs effets (images retaillées, ordre, filtrage) ne se lisent pas de façon fiable dans le HTML. L'avertissement les nomme comme non déductibles pour chaque album reconnu. Il ne dit pas qu'ils étaient présents.
 
 ### 4.5 Typographie
 
@@ -219,7 +222,7 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 
 1. SPIP-Cli autonome dans `vendor/`, puis `core:telecharger spip -R 4.4`, qui donne la dernière 4.4.x. La version est notée dans `tests/spip-jetable/VERSION` et affichée par les tests ;
 2. installation en SQLite dans `tests/spip-jetable/` (ignoré par git), administrateur avec un mot de passe aléatoire ;
-3. plugin html2spip lié depuis `spip/`, puis activé ; plugin Albums (dernière 4.x) téléchargé par SPIP-Cli puis activé, comme `install-spip-test.sh` de wp2spip le fait déjà ;
+3. plugin html2spip lié depuis `spip/`, puis activé ; plugin Albums en **version fixée 4.4.1**, celle dont les règles du § 4.4 sont tirées, téléchargée depuis l'étiquette du dépôt git.spip.net puis activée. Sa version, lue dans `paquet.xml`, est notée dans `tests/spip-jetable/VERSION` avec celle de SPIP. Les tests échouent si elle diffère. Passer à une autre version d'Albums demande de relire les règles, puis de régénérer et revoir les captures ;
 4. configuration : `autobr` actif ;
 5. chargement du corpus (§ 6.2) avec des **id fixes**, insérés explicitement, pour que les liens du corpus restent stables ;
 6. `--reinitialiser` : suppression complète et réinstallation.
@@ -242,7 +245,10 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 - tableaux : en-têtes, légende, résumé, cellules fusionnées ;
 - `<quote>`, `<cadre>`, `<code>`, `<poesie>` ;
 - `<docN|left>`, `<imgN>`, `<embN>` ;
-- albums : `<albumN>`, par objet (`objet`, `id_objet`), par liste de documents (`id_document`), avec `disposition`, alignement, `position_legende`, `classe`, `masquer_legende`, titre personnalisé ; un album avec `largeur` ou `recadrer_ratio` (`limite`) ;
+- albums :
+  - `<albumN>`, par objet (`objet`, `id_objet`), par liste de documents (`id_document`) ;
+  - avec chaque disposition (`inline` par défaut, `line`, `mosaic`, `masonry`, `list`, `browse`, `simple`), alignement, `position_legende`, `classe`, `modele_doc`, `masquer_legende`, titre personnalisé ;
+  - albums dont un paramètre non déductible change le rendu (`largeur`, `recadrer_ratio`, `par`, `pagination`, `media`) : marqués `limite`, donc exclus du test de rendu identique ;
 - typographie : `'`, `« »`, `<<>>`, `: ; ! ?`, `~` voulus ;
 - textes qui ressemblent à des raccourcis ;
 - `_ ` et retours simples ;
