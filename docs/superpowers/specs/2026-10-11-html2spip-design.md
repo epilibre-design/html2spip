@@ -215,7 +215,7 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 
 - `<multi>` : seul le texte de la langue rendue est gardé ;
 - notes dont l'appel ou le contenu n'est pas dans le fragment (§ 4.2) ;
-- contenu de `<html>…</html>` et de `<echappe>` : reste en HTML ;
+- contenu de `<html>…</html>` : converti comme du HTML quelconque (`<b>` y devient `{{…}}`) ;
 - forme exacte parmi des variantes équivalentes : `[->art123]` ou `[->123]`, `a:` ou `a :`, `--` ou `—` ;
 - modèles non reconnus : restent en HTML ;
 - paramètres de modèles sans trace dans le HTML (§ 4.4).
@@ -266,7 +266,7 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 - typographie, en français et en anglais : chaque règle de l'annexe A ; `C’est` tapé avec `’` dans la source (rendu en caractère par SPIP, sortie `C'est` rendue en `&#8217;`) ; `~` voulus (entre deux mots, devant un signe où SPIP n'en met pas) ; `10:30`, `::`, `[?…]`, `(!)` sans insécable ; abréviations ; `--` et `---` ; `« »` et `“ ”` ;
 - textes qui ressemblent à des raccourcis ;
 - `_ ` et retours simples ;
-- cas perdus (`limite`) : `<multi>`, `<html>`, `<echappe>`, modèle de plugin non reconnu.
+- cas perdus (`limite`) : `<multi>`, `<html>`, modèle de plugin non reconnu (modèle du plugin de test `html2spip_test`).
 
 ### 6.3 Captures
 
