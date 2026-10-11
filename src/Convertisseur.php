@@ -17,6 +17,7 @@ final class Convertisseur
 	 */
 	private const CLASSES = array(
 		'code' => Reconnaissance\Code::class,
+		'typographie' => Reconnaissance\Typographie::class,
 	);
 
 	private array $avertissements = array();

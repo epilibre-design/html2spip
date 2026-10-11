@@ -157,7 +157,7 @@ Tout HTML qui n'a pas cette forme n'est pas identifié comme modèle : il passe 
 Principe : un caractère introduit par la typographie n'est retiré que si elle le remettra au rendu.
 
 - `’` → `'`. Un `’` tapé par l'auteur s'affiche de la même façon.
-- Espace insécable (U+00A0) à un endroit où SPIP en ajoute une (annexe A, règles fr 3 à 7 et en 2) → espace normale, ou rien si aucune espace ne la touchait dans le HTML (`a&nbsp;:` → `a :`). SPIP la remet, que la source ait été `a:`, `a :` ou `a~:`.
+- Espace insécable (U+00A0) à un endroit où SPIP en ajoute une (annexe A, règles fr 3 à 7, en 2 et en 2 bis) → espace normale, ou rien si aucune espace ne la touchait dans le HTML (`a&nbsp;:` → `a :`). SPIP la remet, que la source ait été `a:`, `a :` ou `a~:`.
 - Toute autre espace insécable → `~` : l'auteur l'avait voulue.
 - `—` produit par `--` : gardé en caractère. Le rendu est le même, et le texte se lit mieux.
 - Les guillemets `« »` `“ ”` et `°` restent des caractères UTF-8. SPIP ne fait que les écrire en entités numériques, et ne convertit pas `<<` ni `>>`.
@@ -256,7 +256,7 @@ Ces cas sont documentés. Ceux qu'un SPIP 4.4 sans plugin produit figurent dans 
 
 ## Annexe A — Typographie de SPIP 4.4
 
-Relevée le 2026-10-11 dans SPIP 4.4.21 : `ecrire/typographie/fr.php` (`typographie_fr_dist`), `ecrire/typographie/en.php` (`typographie_en_dist`), `ecrire/inc/texte.php` (`corriger_typo`), `ecrire/inc/lang.php` (`lang_typo`). La version 4.4.x installée par les tests est comparée à cette annexe : un changement de ces fichiers fait échouer les captures (§ 6.4) et demande de relire l'annexe.
+Relevée le 2026-10-11 dans SPIP 4.4.21 et 4.4.28 : `plugins-dist/textwheel/typographie/fr.php` (`typographie_fr`) et `en.php` (`typographie_en`), `ecrire/inc/texte.php` (`corriger_typo`), `ecrire/inc/lang.php` (`lang_typo`). Le plugin-dist textwheel, toujours actif, remplace les fonctions `typographie_fr_dist` et `typographie_en_dist` de `ecrire/typographie/` : ce sont ses règles qui s'appliquent. Une première version de cette annexe, tirée de `ecrire/typographie/`, omettait deux règles en ; la capture de l'article 22 l'a montré. La version 4.4.x installée par les tests est comparée à cette annexe : un changement de ces fichiers fait échouer les captures (§ 6.4) et demande de relire l'annexe.
 
 ### Fonctionnement commun
 
@@ -268,25 +268,26 @@ Relevée le 2026-10-11 dans SPIP 4.4.21 : `ecrire/typographie/fr.php` (`typograp
 | N° | SPIP fait | Inversion | Cas du corpus |
 |---|---|---|---|
 | fr 1 | `'` → `&#8217;` (`’`) | `’` → `'` | apostrophes, titres de liens avec `'` |
-| fr 2 | `&raquo;` `&laquo;` `&rdquo;` `&ldquo;` `&deg;` et les caractères `»` `«` `”` `“` `°` → entités numériques | rien : l'arbre DOM les décode en caractères, gardés tels quels | guillemets, `n°` |
+| fr 2 | `&raquo;` `&laquo;` `&rdquo;` `&ldquo;` `&deg;` et les caractères `»` `«` `”` `“` `°` → entités numériques ; `—` → `--` (puis fr 8) | rien : l'arbre DOM les décode en caractères, gardés tels quels | guillemets, `n°` |
 | fr 3 | insécable ajoutée devant tout `;`, sauf celui qui termine une entité (`&amp;`, `&#123;`) | insécable → espace | `a; b`, `a ; b`, `é;`, entités échappées intactes |
 | fr 4 | insécable ajoutée devant `»`, devant ` -,` et ` --,` (toujours), et devant `:` non suivi de `:` et ` %`, si ces deux-là sont suivis d'un non-mot ou de la fin du texte | insécable → espace | `a: b`, `a : b`, `10 %`, `« x »` ; `10:30`, `a::b`, `10 %x` sans insécable |
 | fr 5 | insécable ajoutée devant le premier `!` ou `?` d'une suite, sauf après `[` `<` `(` `!` `?` `.` | insécable → espace | `Quoi ?!`, `(!)`, `[?terme]` sans insécable |
 | fr 6 | insécable ajoutée après `«`, `M.`, `MM.`, `Mme`, `Mmes`, `Mr`, `Mr.`, `M°`, `n°`, `N°` suivis d'une espace | insécable → espace | `« x »`, `Mme Dupont`, `n° 5` |
 | fr 7 | insécables retirées dans les URL (`http~://…~?`) | rien | URL nue suivie de `?` |
 | fr 8 | `--` → `&mdash;` (pas dans `---`, pas en début de ligne après `-`) | `—` gardé en caractère | `a -- b`, `---` intact |
-| fr 9 | autre insécable (tapée `~` ou `&nbsp;`) gardée | `~` | `100~km`, `a~b` |
+| fr 9 | autre insécable (tapée `~` ou `&nbsp;`) gardée ; fine U+2009 changée en insécable | `~` | `100~km`, `a~b` |
 
 ### Table en (toutes les autres langues)
 
 | N° | SPIP fait | Inversion | Cas du corpus |
 |---|---|---|---|
 | en 1 | `'` → `&#8217;` (`’`) | `’` → `'` | apostrophes |
-| en 2 | insécable ajoutée devant ` -,` et ` --,` | insécable → espace | `a -, b` |
+| en 2 | insécable ajoutée devant ` -,` et ` --,` (toujours), et devant ` %` suivi d'un non-mot ou de la fin du texte | insécable → espace | `a -, b`, `10 % here` |
+| en 2 bis | insécable ajoutée après `Mr` et `Mr.` suivis d'une espace | insécable → espace | `Mr Smith` |
 | en 3 | `--` → `&mdash;` (mêmes exceptions que fr 8) | `—` gardé en caractère | `a -- b` |
 | en 4 | autre insécable gardée | `~` | `a~:`, `100~km` |
 
-En anglais, une insécable devant `:` `;` `!` `?` n'est jamais ajoutée par SPIP : elle devient donc `~` (en 4).
+En anglais, une insécable devant `:` `;` `!` `?` n'est jamais ajoutée par SPIP : elle devient donc `~` (en 4). La table en de textwheel accepte aussi `\~` pour écrire un `~` littéral.
 
 ### Limites
 
