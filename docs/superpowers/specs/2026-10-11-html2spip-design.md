@@ -2,7 +2,7 @@
 
 Date : 2026-10-11
 Origine : convertisseur de wp2spip (`inc/wp2spip_html.php`, spec `2026-10-09-wp2spip-convertisseur-html-design.md` du dépôt wp2spip) et plugin [sale](https://git.spip.net/spip-contrib-extensions/sale).
-Statut : design validé par le mainteneur le 2026-10-11, puis **simplifié** le même jour à sa demande : pas d'extraction de page publique, pas de reconstruction de `<multi>`. Reconnaissance des modèles de plugins ajoutée le même jour, avec Albums en premier (§ 4.4). **Volet ouvert** : règles de typographie (§ 4.5, annexe A), à relever dans le code de SPIP 4.4 en première tâche de la réalisation et à faire valider avant d'écrire la passe Typographie.
+Statut : design validé par le mainteneur le 2026-10-11, puis **simplifié** le même jour à sa demande : pas d'extraction de page publique, pas de reconstruction de `<multi>`. Reconnaissance des modèles de plugins ajoutée le même jour, avec Albums en premier (§ 4.4). Règles de typographie relevées dans le code de SPIP 4.4.21 le même jour (§ 4.5, annexe A) ; plus aucun volet ouvert.
 
 ## 1. Objectif
 
@@ -178,14 +178,17 @@ Paramètres **non déductibles** : `largeur`, `hauteur`, `recadrer_ratio`, `reca
 
 ### 4.5 Typographie
 
-Règle : un caractère introduit par `typo()` n'est retiré que si `typo()` le remettra au rendu. Pour le français :
+`typo()` (et `propre()`, par `corriger_typo()`) applique la typographie de la langue du texte. `lang_typo()` (`ecrire/inc/lang.php`) choisit la table **fr** pour `fr`, `fr_*`, `eo` et `cpf`, et la table **en** pour toutes les autres langues. L'option `langue` choisit donc l'une des deux inversions. Les règles exactes, relevées dans le code de SPIP 4.4, forment l'annexe A.
 
-- `’` → `'` ;
-- espace insécable (U+00A0, ou fine U+202F) devant `:` `;` `!` `?` et à l'intérieur de `« »` : retirée ;
-- toute autre espace insécable : `~` ;
-- `« »` restent des caractères UTF-8 : le rendu est identique à `<<`/`>>`, et le texte se lit mieux.
+Principe : un caractère introduit par la typographie n'est retiré que si elle le remettra au rendu.
 
-La liste complète des transformations de `ecrire/typographie/fr.php`, et des autres langues gérées par SPIP 4.4, est relevée dans le code au début de la réalisation et forme l'annexe A. Une langue sans table n'a aucune inversion.
+- `’` → `'`. Un `’` tapé par l'auteur s'affiche de la même façon.
+- Espace insécable (U+00A0) à un endroit où SPIP en ajoute une (annexe A, règles fr 3 à 7 et en 2) → espace normale, ou rien si aucune espace ne la touchait dans le HTML (`a&nbsp;:` → `a :`). SPIP la remet, que la source ait été `a:`, `a :` ou `a~:`.
+- Toute autre espace insécable → `~` : l'auteur l'avait voulue.
+- `—` produit par `--` : gardé en caractère. Le rendu est le même, et le texte se lit mieux.
+- Les guillemets `« »` `“ ”` et `°` restent des caractères UTF-8. SPIP ne fait que les écrire en entités numériques, et ne convertit pas `<<` ni `>>`.
+- Les espaces fines (U+202F) ne sont jamais produites par SPIP 4.4 : elles sont gardées telles quelles.
+- La passe ne touche que les nœuds texte hors code (`<code>`, `<cadre>`) et hors attributs, comme `corriger_typo()`, qui protège les balises HTML.
 
 ### 4.6 Échappement
 
@@ -203,14 +206,14 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 - `<multi>` : seul le texte de la langue rendue est gardé ;
 - notes dont l'appel ou le contenu n'est pas dans le fragment (§ 4.2) ;
 - contenu de `<html>…</html>` et de `<echappe>` : reste en HTML ;
-- forme exacte parmi des variantes équivalentes : `[->art123]` ou `[->123]`, `<<` ou `«` ;
+- forme exacte parmi des variantes équivalentes : `[->art123]` ou `[->123]`, `a:` ou `a :`, `--` ou `—` ;
 - modèles non reconnus : restent en HTML ;
 - paramètres de modèles sans trace dans le HTML (§ 4.4).
 
 ## 5. Forme canonique
 
 - Liens d'objet : `[->123]` si le texte est le titre affiché, sinon `[texte->123]`, avec les raccourcis courts (`123`, `rub5`…).
-- Typographie : apostrophes droites, `« »` en caractères, `~` seulement pour les insécables voulues.
+- Typographie : apostrophes droites, `« »` `“ ”` `—` en caractères, espace normale là où SPIP ajoute une insécable, `~` seulement pour les insécables voulues.
 - Paragraphes séparés par une ligne vide, aucun blanc en fin de ligne, aucune ligne vide en tête ni en fin.
 - Notes à leur place d'appel.
 
@@ -249,7 +252,7 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
   - `<albumN>`, par objet (`objet`, `id_objet`), par liste de documents (`id_document`) ;
   - avec chaque disposition (`inline` par défaut, `line`, `mosaic`, `masonry`, `list`, `browse`, `simple`), alignement, `position_legende`, `classe`, `modele_doc`, `masquer_legende`, titre personnalisé ;
   - albums dont un paramètre non déductible change le rendu (`largeur`, `recadrer_ratio`, `par`, `pagination`, `media`) : marqués `limite`, donc exclus du test de rendu identique ;
-- typographie : `'`, `« »`, `<<>>`, `: ; ! ?`, `~` voulus ;
+- typographie, en français et en anglais : chaque règle de l'annexe A ; `~` voulus (entre deux mots, devant un signe où SPIP n'en met pas) ; `10:30`, `::`, `[?…]`, `(!)` sans insécable ; abréviations ; `--` et `---` ; `« »` et `“ ”` ;
 - textes qui ressemblent à des raccourcis ;
 - `_ ` et retours simples ;
 - cas perdus (`limite`) : `<multi>`, `<html>`, `<echappe>`, modèle de plugin non reconnu.
@@ -280,4 +283,40 @@ Ces cas sont documentés et figurent dans le corpus avec leur sortie attendue :
 
 ## Annexe A — Typographie de SPIP 4.4
 
-**Ouverte.** À relever dans `ecrire/typographie/*.php` en première tâche de la réalisation : chaque transformation, la règle d'inversion retenue et le test qui la couvre. L'annexe est soumise au mainteneur avant l'écriture de la passe Typographie ; le § 4.5 n'en donne que le principe et les règles certaines.
+Relevée le 2026-10-11 dans SPIP 4.4.21 : `ecrire/typographie/fr.php` (`typographie_fr_dist`), `ecrire/typographie/en.php` (`typographie_en_dist`), `ecrire/inc/texte.php` (`corriger_typo`), `ecrire/inc/lang.php` (`lang_typo`). La version 4.4.x installée par les tests est comparée à cette annexe : un changement de ces fichiers fait échouer les captures (§ 6.4) et demande de relire l'annexe.
+
+### Fonctionnement commun
+
+- `corriger_typo()` protège les caractères ``!':;?~%-`` à l'intérieur des balises HTML, puis traite à part les blocs `<multi>` et les idiomes, chacun dans sa langue.
+- Dans les deux tables, toute insécable (`&nbsp;`, U+00A0) devient un `~` interne. Les espaces qui touchent un `~` sont fusionnées avec lui (`/ *~+ */` → `~`), puis chaque `~` devient `&nbsp;`. Une insécable de la sortie remplace donc aussi les espaces normales qui l'entouraient dans la source.
+
+### Table fr (`fr`, `fr_*`, `eo`, `cpf`)
+
+| N° | SPIP fait | Inversion | Cas du corpus |
+|---|---|---|---|
+| fr 1 | `'` → `&#8217;` (`’`) | `’` → `'` | apostrophes, titres de liens avec `'` |
+| fr 2 | `&raquo;` `&laquo;` `&rdquo;` `&ldquo;` `&deg;` et les caractères `»` `«` `”` `“` `°` → entités numériques | rien : l'arbre DOM les décode en caractères, gardés tels quels | guillemets, `n°` |
+| fr 3 | insécable ajoutée devant tout `;`, sauf celui qui termine une entité (`&amp;`, `&#123;`) | insécable → espace | `a; b`, `a ; b`, `é;`, entités échappées intactes |
+| fr 4 | insécable ajoutée devant `»`, devant ` -,` et ` --,` (toujours), et devant `:` non suivi de `:` et ` %`, si ces deux-là sont suivis d'un non-mot ou de la fin du texte | insécable → espace | `a: b`, `a : b`, `10 %`, `« x »` ; `10:30`, `a::b`, `10 %x` sans insécable |
+| fr 5 | insécable ajoutée devant le premier `!` ou `?` d'une suite, sauf après `[` `<` `(` `!` `?` `.` | insécable → espace | `Quoi ?!`, `(!)`, `[?terme]` sans insécable |
+| fr 6 | insécable ajoutée après `«`, `M.`, `MM.`, `Mme`, `Mmes`, `Mr`, `Mr.`, `M°`, `n°`, `N°` suivis d'une espace | insécable → espace | `« x »`, `Mme Dupont`, `n° 5` |
+| fr 7 | insécables retirées dans les URL (`http~://…~?`) | rien | URL nue suivie de `?` |
+| fr 8 | `--` → `&mdash;` (pas dans `---`, pas en début de ligne après `-`) | `—` gardé en caractère | `a -- b`, `---` intact |
+| fr 9 | autre insécable (tapée `~` ou `&nbsp;`) gardée | `~` | `100~km`, `a~b` |
+
+### Table en (toutes les autres langues)
+
+| N° | SPIP fait | Inversion | Cas du corpus |
+|---|---|---|---|
+| en 1 | `'` → `&#8217;` (`’`) | `’` → `'` | apostrophes |
+| en 2 | insécable ajoutée devant ` -,` et ` --,` | insécable → espace | `a -, b` |
+| en 3 | `--` → `&mdash;` (mêmes exceptions que fr 8) | `—` gardé en caractère | `a -- b` |
+| en 4 | autre insécable gardée | `~` | `a~:`, `100~km` |
+
+En anglais, une insécable devant `:` `;` `!` `?` n'est jamais ajoutée par SPIP : elle devient donc `~` (en 4).
+
+### Limites
+
+- Une insécable voulue par l'auteur à un endroit où SPIP en ajoute une (`a~:` en français) devient une espace normale. Le rendu est identique.
+- Les espaces normales qui entouraient une insécable dans la source sont perdues (fusion). Le rendu est identique.
+- Le pipeline `pre_typo`/`post_typo` d'un plugin peut ajouter d'autres transformations, qui ne sont pas inversées.
